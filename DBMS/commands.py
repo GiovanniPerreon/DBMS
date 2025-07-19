@@ -120,6 +120,133 @@ def setup_commands(client, GUILD_ID):
         
         view = SongView()
         await interaction.response.send_message("🎵 **Choose a song to play:**", view=view, ephemeral=True) 
+
+    @client.tree.command(name="soundboard", description="Play a Discord soundboard sound", guild=GUILD_ID)
+    async def soundboard(interaction: discord.Interaction, sound_id: str):
+        """Play a Discord soundboard sound by ID"""
+        # Check if user is in a voice channel
+        if interaction.user.voice is None:
+            await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
+            return
+        
+        # Check if bot is connected to voice
+        voice_client = interaction.guild.voice_client
+        if voice_client is None:
+            try:
+                voice_client = await interaction.user.voice.channel.connect()
+            except discord.Forbidden:
+                await interaction.response.send_message("❌ I don't have permission to join that voice channel!", ephemeral=True)
+                return
+        
+        try:
+            # Play the soundboard sound using Discord's API
+            await voice_client.play_soundboard_sound(sound_id)
+            await interaction.response.send_message(f"🔊 Playing soundboard sound: `{sound_id}`", ephemeral=True)
+        except discord.HTTPException as e:
+            await interaction.response.send_message(f"❌ Failed to play soundboard: {str(e)}", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
+
+    @client.tree.command(name="list_sounds", description="List available Discord soundboard sounds", guild=GUILD_ID)
+    async def list_sounds(interaction: discord.Interaction):
+        """List available soundboard sounds in the guild"""
+        try:
+            # Get soundboard sounds from the guild
+            sounds = await interaction.guild.fetch_soundboard_sounds()
+            
+            if not sounds:
+                await interaction.response.send_message("❌ No soundboard sounds found in this server!", ephemeral=True)
+                return
+            
+            # Create a list of sounds with their IDs and names
+            sound_list = []
+            for sound in sounds[:10]:  # Limit to first 10 to avoid message length issues
+                sound_list.append(f"🔊 **{sound.name}** - ID: `{sound.id}`")
+            
+            embed = discord.Embed(
+                title="🎵 Available Soundboard Sounds",
+                description="\n".join(sound_list),
+                color=0x00ff00
+            )
+            embed.set_footer(text="Use /soundboard <sound_id> to play a sound")
+            
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+        except discord.HTTPException as e:
+            await interaction.response.send_message(f"❌ Failed to fetch soundboard sounds: {str(e)}", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
+
+    @client.tree.command(name="quick_sound", description="Quick access to popular soundboard sounds", guild=GUILD_ID)
+    async def quick_sound(interaction: discord.Interaction):
+        """Quick dropdown menu for popular soundboard sounds"""
+        # Check if user is in a voice channel
+        if interaction.user.voice is None:
+            await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
+            return
+        
+        try:
+            # Get soundboard sounds from the guild
+            sounds = await interaction.guild.fetch_soundboard_sounds()
+            
+            if not sounds:
+                await interaction.response.send_message("❌ No soundboard sounds found in this server!", ephemeral=True)
+                return
+            
+            # Create dropdown menu for soundboard sounds
+            class SoundboardSelect(discord.ui.Select):
+                def __init__(self, available_sounds):
+                    self.available_sounds = available_sounds  # Store reference
+                    options = []
+                    for sound in available_sounds[:25]:  # Discord limit is 25 options
+                        options.append(SelectOption(
+                            label=sound.name[:100],  # Discord label limit
+                            description=f"Play {sound.name}"[:100],  # Discord description limit
+                            value=str(sound.id),
+                            emoji="🔊"
+                        ))
+                    super().__init__(placeholder="Choose a soundboard sound...", options=options)
+                
+                async def callback(self, interaction: discord.Interaction):
+                    sound_id = self.values[0]
+                    
+                    # Check if bot is connected to voice
+                    voice_client = interaction.guild.voice_client
+                    if voice_client is None:
+                        try:
+                            voice_client = await interaction.user.voice.channel.connect()
+                        except discord.Forbidden:
+                            await interaction.response.send_message("❌ I don't have permission to join that voice channel!", ephemeral=True)
+                            return
+                    
+                    try:
+                        # Play the soundboard sound
+                        await voice_client.play_soundboard_sound(sound_id)
+                        # Find sound name for confirmation
+                        sound_name = next((s.name for s in self.available_sounds if str(s.id) == sound_id), sound_id)
+                        await interaction.response.send_message(f"🔊 Playing: **{sound_name}**", ephemeral=True)
+                    except discord.HTTPException as e:
+                        await interaction.response.send_message(f"❌ Failed to play soundboard: {str(e)}", ephemeral=True)
+                    except Exception as e:
+                        await interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
+            
+            class SoundboardView(discord.ui.View):
+                def __init__(self, available_sounds):
+                    super().__init__(timeout=60)
+                    self.add_item(SoundboardSelect(available_sounds))
+                
+                async def on_timeout(self):
+                    for item in self.children:
+                        item.disabled = True
+            
+            view = SoundboardView(sounds)
+            await interaction.response.send_message("🔊 **Choose a soundboard sound:**", view=view, ephemeral=True)
+            
+        except discord.HTTPException as e:
+            await interaction.response.send_message(f"❌ Failed to fetch soundboard sounds: {str(e)}", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
+
     # Add the command to the client
     @client.tree.command(name="dm_user", description="Send a direct message to a user", guild=GUILD_ID)
     async def dm_user(interaction: discord.Interaction, user: discord.Member, message: str):
