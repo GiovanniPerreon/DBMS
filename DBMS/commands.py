@@ -103,6 +103,7 @@ def setup_commands(client, GUILD_ID):
                     
                     # Remove file extension for display
                     display_name = os.path.splitext(selected_file)[0]
+                    
                     await interaction.response.send_message(f"🎵 Now playing: **{display_name}**", ephemeral=True)
                 except Exception as e:
                     await interaction.response.send_message(f"❌ Error playing audio: {str(e)}", ephemeral=True)
