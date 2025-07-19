@@ -1,9 +1,8 @@
 import discord
 from discord.ext import commands
-from discord import app_commands, SelectOption
+from discord import app_commands
 import os
-import sys
-import asyncio
+from discord import SelectOption
 
 def setup_commands(client, GUILD_ID):
     """Set up all slash commands for the bot"""
@@ -51,29 +50,17 @@ def setup_commands(client, GUILD_ID):
         script_dir = os.path.dirname(os.path.abspath(__file__))
         audio_dir = os.path.join(script_dir, "audio")
         
-        print(f"Looking for audio files in: {audio_dir}")  # Debug log
-        
         if not os.path.exists(audio_dir):
             await interaction.response.send_message("❌ Audio directory not found!", ephemeral=True)
-            print(f"Audio directory does not exist: {audio_dir}")
             return
         
         # Find all audio files
         audio_extensions = ['.mp3', '.wav', '.ogg', '.m4a', '.flac']
         audio_files = []
         
-        try:
-            files_in_dir = os.listdir(audio_dir)
-            print(f"Files found in audio directory: {files_in_dir}")  # Debug log
-            
-            for file in files_in_dir:
-                if any(file.lower().endswith(ext) for ext in audio_extensions):
-                    audio_files.append(file)
-                    print(f"Added audio file: {file}")  # Debug log
-        except Exception as e:
-            print(f"Error listing audio directory: {e}")
-            await interaction.response.send_message(f"❌ Error accessing audio directory: {str(e)}", ephemeral=True)
-            return
+        for file in os.listdir(audio_dir):
+            if any(file.lower().endswith(ext) for ext in audio_extensions):
+                audio_files.append(file)
         
         if not audio_files:
             await interaction.response.send_message("❌ No audio files found in the audio directory!", ephemeral=True)
@@ -92,12 +79,9 @@ def setup_commands(client, GUILD_ID):
                         description=f"Play {display_name}",
                         value=file
                     ))
-                
                 super().__init__(placeholder="Choose a song to play...", options=options)
-            
             async def callback(self, interaction: discord.Interaction):
                 selected_file = self.values[0]
-                
                 # Check if bot is connected to voice
                 voice_client = interaction.guild.voice_client
                 if voice_client is None:
@@ -106,15 +90,12 @@ def setup_commands(client, GUILD_ID):
                     except discord.Forbidden:
                         await interaction.response.send_message("❌ I don't have permission to join that voice channel!", ephemeral=True)
                         return
-                
                 # Get full path to selected file
                 script_dir = os.path.dirname(os.path.abspath(__file__))
                 sound_path = os.path.join(script_dir, "audio", selected_file)
-                
                 # Stop any currently playing audio
                 if voice_client.is_playing():
                     voice_client.stop()
-                
                 # Play the selected audio
                 try:
                     source = discord.FFmpegOpusAudio(sound_path)
@@ -145,12 +126,9 @@ def setup_commands(client, GUILD_ID):
         try:
             await user.send(f"{message}")
             await interaction.response.send_message(f"✅ Message sent!", ephemeral=True)
-            print(f"✅ DM successfully sent to {user.display_name}")
         except discord.Forbidden:
             await interaction.response.send_message(f"❌ Cannot send DM to {user.display_name}. They may have DMs disabled.", ephemeral=True)
             print(f"❌ DM failed - {user.display_name} has DMs disabled")
         except Exception as e:
             await interaction.response.send_message(f"❌ Error sending message: {str(e)}", ephemeral=True)
             print(f"❌ DM failed with error: {str(e)}")
-
-    print("✅ All commands registered successfully!")

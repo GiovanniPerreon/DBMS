@@ -11,7 +11,6 @@ class Client(commands.Bot):
     # Called when bot is ready
     async def on_ready(self):
         print(f'Logged in as {self.user}! (ID: {self.user.id})')
-        
         try:
             guild_id = os.getenv('GUILD_ID')
             if guild_id:
