@@ -6,10 +6,6 @@ import threading
 from keep_alive import keep_alive
 from commands import setup_commands
 
-# Load environment variables from .env file
-from dotenv import load_dotenv
-load_dotenv()
-
 # Custom bot client class
 class Client(commands.Bot):
     # Called when bot is ready
