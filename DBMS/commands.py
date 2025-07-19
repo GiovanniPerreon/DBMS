@@ -39,6 +39,33 @@ def setup_commands(client, GUILD_ID):
         # Disconnect from voice
         await interaction.guild.voice_client.disconnect()
 
+    @client.tree.command(name="play_song", description="Choose and play a song from the available list", guild=GUILD_ID)
+    async def play_song(interaction: discord.Interaction):
+        # Check if user is in a voice channel
+        if interaction.user.voice is None:
+            await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
+            return
+        
+        # Get available audio files
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        audio_dir = os.path.join(script_dir, "audio")
+        
+        if not os.path.exists(audio_dir):
+            await interaction.response.send_message("❌ Audio directory not found!", ephemeral=True)
+            return
+        
+        # Find all audio files
+        audio_extensions = ['.mp3', '.wav', '.ogg', '.m4a', '.flac']
+        audio_files = []
+        
+        for file in os.listdir(audio_dir):
+            if any(file.lower().endswith(ext) for ext in audio_extensions):
+                audio_files.append(file)
+        
+        if not audio_files:
+            await interaction.response.send_message("❌ No audio files found in the audio directory!", ephemeral=True)
+            return
+        
         # Create dropdown menu
         class SongSelect(discord.ui.Select):
             def __init__(self):
