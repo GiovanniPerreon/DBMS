@@ -55,7 +55,6 @@ def main():
         print("ERROR: GUILD_ID environment variable not found!")
         print("Please set your Discord server ID in the environment variables.")
         return
-    
     try:
         GUILD_ID = discord.Object(id=int(guild_id))
     except ValueError:
@@ -92,46 +91,78 @@ def main():
         # Disconnect from voice
         await interaction.guild.voice_client.disconnect()
 
-    @client.tree.command(name="play_michael", description="Play the Michael Saves audio file", guild=GUILD_ID)
-    async def play_michael(interaction: discord.Interaction):
+    @client.tree.command(name="play_song", description="Choose and play a song from the available list", guild=GUILD_ID)
+    async def play_song(interaction: discord.Interaction):
         # Check if user is in a voice channel
         if interaction.user.voice is None:
             await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
             return
-        # Check if bot is connected to voice
-        voice_client = interaction.guild.voice_client
-        if voice_client is None:
-            try:
-                voice_client = await interaction.user.voice.channel.connect()
-            except discord.Forbidden:
-                await interaction.response.send_message("❌ I don't have permission to join that voice channel!", ephemeral=True)
-                return
-
-        # Look for Michael audio files (try WAV first, then MP3)
-        # Get the directory where this script is located
+        # Get available audio files
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        possible_files = [
-            os.path.join(script_dir, "audio", "Michael.wav"),
-            os.path.join(script_dir, "audio", "Michael.mp3")
-        ]
-        sound_path = None
-        for file_path in possible_files:
-            if os.path.exists(file_path):
-                sound_path = file_path
-                break
-        if not sound_path:
-            await interaction.response.send_message("❌ File not found!", ephemeral=True)
+        audio_dir = os.path.join(script_dir, "audio")
+        if not os.path.exists(audio_dir):
+            await interaction.response.send_message("❌ Audio directory not found!", ephemeral=True)
             return
-        # Stop any currently playing audio
-        if voice_client.is_playing():
-            voice_client.stop()
-        # Play the Michael audio
-        try:
-            # Use Opus encoding as required by Discord
-            source = discord.FFmpegOpusAudio(sound_path)
-            voice_client.play(source, after=lambda e: print(f'Error: {e}') if e else None)
-        except Exception as e:
-            await interaction.response.send_message(f"❌ Error playing audio: {str(e)}", ephemeral=True)
+        # Find all audio files
+        audio_extensions = ['.mp3', '.wav', '.ogg', '.m4a', '.flac']
+        audio_files = []
+        for file in os.listdir(audio_dir):
+            if any(file.lower().endswith(ext) for ext in audio_extensions):
+                audio_files.append(file)
+        if not audio_files:
+            await interaction.response.send_message("❌ No audio files found in the audio directory!", ephemeral=True)
+            return
+        # Create dropdown menu
+        from discord import SelectOption
+        
+        class SongSelect(discord.ui.Select):
+            def __init__(self):
+                # Create options for each audio file (limit to 25 options max)
+                options = []
+                for i, file in enumerate(audio_files[:25]):  # Discord limit is 25 options
+                    # Remove file extension for display
+                    display_name = os.path.splitext(file)[0]
+                    options.append(SelectOption(
+                        label=display_name,
+                        description=f"Play {display_name}",
+                        value=file
+                    ))
+                super().__init__(placeholder="Choose a song to play...", options=options)
+            async def callback(self, interaction: discord.Interaction):
+                selected_file = self.values[0]
+                # Check if bot is connected to voice
+                voice_client = interaction.guild.voice_client
+                if voice_client is None:
+                    try:
+                        voice_client = await interaction.user.voice.channel.connect()
+                    except discord.Forbidden:
+                        await interaction.response.send_message("❌ I don't have permission to join that voice channel!", ephemeral=True)
+                        return
+                # Get full path to selected file
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                sound_path = os.path.join(script_dir, "audio", selected_file)
+                # Stop any currently playing audio
+                if voice_client.is_playing():
+                    voice_client.stop()
+                # Play the selected audio
+                try:
+                    source = discord.FFmpegOpusAudio(sound_path)
+                    voice_client.play(source, after=lambda e: print(f'Error: {e}') if e else None)
+                except Exception as e:
+                    await interaction.response.send_message(f"❌ Error playing audio: {str(e)}", ephemeral=True)
+        
+        class SongView(discord.ui.View):
+            def __init__(self):
+                super().__init__(timeout=60)  # 60 second timeout
+                self.add_item(SongSelect())
+            
+            async def on_timeout(self):
+                # Disable the select menu when timeout occurs
+                for item in self.children:
+                    item.disabled = True
+        
+        view = SongView()
+        await interaction.response.send_message("🎵 **Choose a song to play:**", view=view, ephemeral=True)
     # Run the bot with the provided token
     try:
         print("Starting Discord bot...")
