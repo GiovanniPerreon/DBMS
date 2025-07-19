@@ -65,17 +65,29 @@ def setup_commands(client, GUILD_ID):
         script_dir = os.path.dirname(os.path.abspath(__file__))
         audio_dir = os.path.join(script_dir, "audio")
         
+        print(f"Looking for audio files in: {audio_dir}")  # Debug log
+        
         if not os.path.exists(audio_dir):
             await interaction.response.send_message("❌ Audio directory not found!", ephemeral=True)
+            print(f"Audio directory does not exist: {audio_dir}")
             return
         
         # Find all audio files
         audio_extensions = ['.mp3', '.wav', '.ogg', '.m4a', '.flac']
         audio_files = []
         
-        for file in os.listdir(audio_dir):
-            if any(file.lower().endswith(ext) for ext in audio_extensions):
-                audio_files.append(file)
+        try:
+            files_in_dir = os.listdir(audio_dir)
+            print(f"Files found in audio directory: {files_in_dir}")  # Debug log
+            
+            for file in files_in_dir:
+                if any(file.lower().endswith(ext) for ext in audio_extensions):
+                    audio_files.append(file)
+                    print(f"Added audio file: {file}")  # Debug log
+        except Exception as e:
+            print(f"Error listing audio directory: {e}")
+            await interaction.response.send_message(f"❌ Error accessing audio directory: {str(e)}", ephemeral=True)
+            return
         
         if not audio_files:
             await interaction.response.send_message("❌ No audio files found in the audio directory!", ephemeral=True)
