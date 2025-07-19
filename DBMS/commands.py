@@ -18,7 +18,6 @@ def setup_commands(client, GUILD_ID):
         if interaction.user.voice is None:
             await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
             return
-        
         # Get the user's voice channel
         voice_channel = interaction.user.voice.channel
         try:
@@ -39,81 +38,7 @@ def setup_commands(client, GUILD_ID):
         
         # Disconnect from voice
         await interaction.guild.voice_client.disconnect()
-        await interaction.response.send_message("✅ Left the voice channel!", ephemeral=True)
 
-    @client.tree.command(name="play_michael", description="Play the Michael Saves audio file", guild=GUILD_ID)
-    async def play_michael(interaction: discord.Interaction):
-        # Check if user is in a voice channel
-        if interaction.user.voice is None:
-            await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
-            return
-        
-        # Check if bot is connected to voice
-        voice_client = interaction.guild.voice_client
-        if voice_client is None:
-            try:
-                voice_client = await interaction.user.voice.channel.connect()
-            except discord.Forbidden:
-                await interaction.response.send_message("❌ I don't have permission to join that voice channel!", ephemeral=True)
-                return
-
-        # Look for Michael audio files (try WAV first, then MP3)
-        # Get the directory where this script is located
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        possible_files = [
-            os.path.join(script_dir, "audio", "Michael.wav"),
-            os.path.join(script_dir, "audio", "Michael.mp3")
-        ]
-        sound_path = None
-        for file_path in possible_files:
-            if os.path.exists(file_path):
-                sound_path = file_path
-                break
-        
-        if not sound_path:
-            await interaction.response.send_message("❌ Michael audio file not found!", ephemeral=True)
-            return
-        
-        # Stop any currently playing audio
-        if voice_client.is_playing():
-            voice_client.stop()
-        
-        # Play the Michael audio
-        try:
-            # Use Opus encoding as required by Discord
-            source = discord.FFmpegOpusAudio(sound_path)
-            voice_client.play(source, after=lambda e: print(f'Error: {e}') if e else None)
-            await interaction.response.send_message("🎵 Playing **Michael Saves** audio!", ephemeral=True)
-        except Exception as e:
-            await interaction.response.send_message(f"❌ Error playing audio: {str(e)}", ephemeral=True)
-
-    @client.tree.command(name="play_song", description="Choose and play a song from the available list", guild=GUILD_ID)
-    async def play_song(interaction: discord.Interaction):
-        # Check if user is in a voice channel
-        if interaction.user.voice is None:
-            await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
-            return
-        
-        # Get available audio files
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        audio_dir = os.path.join(script_dir, "audio")
-        
-        if not os.path.exists(audio_dir):
-            await interaction.response.send_message("❌ Audio directory not found!", ephemeral=True)
-            return
-        
-        # Find all audio files
-        audio_extensions = ['.mp3', '.wav', '.ogg', '.m4a', '.flac']
-        audio_files = []
-        
-        for file in os.listdir(audio_dir):
-            if any(file.lower().endswith(ext) for ext in audio_extensions):
-                audio_files.append(file)
-        
-        if not audio_files:
-            await interaction.response.send_message("❌ No audio files found in the audio directory!", ephemeral=True)
-            return
-        
         # Create dropdown menu
         class SongSelect(discord.ui.Select):
             def __init__(self):
