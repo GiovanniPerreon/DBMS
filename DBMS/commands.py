@@ -124,52 +124,18 @@ def setup_commands(client, GUILD_ID):
                     item.disabled = True
         
         view = SongView()
-        await interaction.response.send_message("🎵 **Choose a song to play:**", view=view, ephemeral=True)
-
-    @client.tree.command(name="stop_music", description="Stop currently playing music", guild=GUILD_ID)
-    async def stop_music(interaction: discord.Interaction):
-        # Check if bot is connected to voice
-        if interaction.guild.voice_client is None:
-            await interaction.response.send_message("❌ I'm not in a voice channel!", ephemeral=True)
-            return
-        
-        voice_client = interaction.guild.voice_client
-        if voice_client.is_playing():
-            voice_client.stop()
-            await interaction.response.send_message("⏹️ Stopped the music!", ephemeral=True)
-        else:
-            await interaction.response.send_message("❌ No music is currently playing!", ephemeral=True)
-
-    @client.tree.command(name="list_songs", description="Show all available songs", guild=GUILD_ID)
-    async def list_songs(interaction: discord.Interaction):
-        # Get available audio files
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        audio_dir = os.path.join(script_dir, "audio")
-        
-        if not os.path.exists(audio_dir):
-            await interaction.response.send_message("❌ Audio directory not found!", ephemeral=True)
-            return
-        
-        # Find all audio files
-        audio_extensions = ['.mp3', '.wav', '.ogg', '.m4a', '.flac']
-        audio_files = []
-        
-        for file in os.listdir(audio_dir):
-            if any(file.lower().endswith(ext) for ext in audio_extensions):
-                display_name = os.path.splitext(file)[0]
-                audio_files.append(display_name)
-        
-        if not audio_files:
-            await interaction.response.send_message("❌ No audio files found in the audio directory!", ephemeral=True)
-            return
-        
-        # Create a formatted list
-        song_list = "🎵 **Available Songs:**\n\n"
-        for i, song in enumerate(audio_files, 1):
-            song_list += f"{i}. {song}\n"
-        
-        # Split into chunks if too long (Discord has a 2000 character limit)
-        if len(song_list) > 2000:
-            song_list = song_list[:1950] + "\n... and more!"
-        
-        await interaction.response.send_message(song_list, ephemeral=True)
+        await interaction.response.send_message("🎵 **Choose a song to play:**", view=view, ephemeral=True) 
+    # Add the command to the client
+    @client.tree.command(name="dm_user", description="Send a direct message to a user", guild=GUILD_ID)
+    async def dm_user(interaction: discord.Interaction, user: discord.Member, message: str):
+        """Send a DM to a specific user"""
+        try:
+            await user.send(f"{message}")
+            await interaction.response.send_message(f"✅ Message sent!", ephemeral=True)
+            print(f"✅ DM successfully sent to {user.display_name}")
+        except discord.Forbidden:
+            await interaction.response.send_message(f"❌ Cannot send DM to {user.display_name}. They may have DMs disabled.", ephemeral=True)
+            print(f"❌ DM failed - {user.display_name} has DMs disabled")
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Error sending message: {str(e)}", ephemeral=True)
+            print(f"❌ DM failed with error: {str(e)}")

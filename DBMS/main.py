@@ -23,9 +23,14 @@ class Client(commands.Bot):
             print(f'Error syncing commands: {e}')
     
     async def on_message(self, message):
-        # Respond to a specific message
+        # Don't respond to own messages
         if message.author == self.user:
             return
+        
+        # Log all messages the bot can see
+        print(f"[{message.channel.name}] {message.author.display_name}: {message.content}")
+        
+        # Respond to specific messages
         if message.content.startswith('Michael'):
             await message.channel.send('<a:jd:1395904586317041794>')
         # On Reaction Add
@@ -52,6 +57,10 @@ def main():
     intents.message_content = True
     # Enable voice state intents for better voice channel support
     intents.voice_states = True
+    # Enable member intents to access user information for messaging
+    intents.members = True
+    # Enable presence intentons to see user status
+    intents.presences = True
     
     # Initialize the bot
     client = Client(command_prefix="!", intents=intents)
