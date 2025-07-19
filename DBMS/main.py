@@ -12,17 +12,6 @@ class Client(commands.Bot):
     async def on_ready(self):
         print(f'Logged in as {self.user}! (ID: {self.user.id})')
         
-        # Initialize AI after bot is ready
-        from commands import bot_ai
-        if bot_ai is not None and not hasattr(bot_ai, '_initialized'):
-            print("🤖 Initializing AI...")
-            try:
-                await bot_ai.initialize_async()
-                bot_ai._initialized = True
-                print("✅ AI initialization complete!")
-            except Exception as e:
-                print(f"❌ AI initialization failed: {e}")
-        
         try:
             guild_id = os.getenv('GUILD_ID')
             if guild_id:
