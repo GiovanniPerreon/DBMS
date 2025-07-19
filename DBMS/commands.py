@@ -1,11 +1,26 @@
 import discord
 from discord.ext import commands
-from discord import app_commands
+from discord import app_commands, SelectOption
 import os
-from discord import SelectOption
+import sys
+import asyncio
+
+# Add AI folder to path and import AI wrapper
+ai_path = os.path.join(os.path.dirname(__file__), 'AI')
+sys.path.insert(0, ai_path)
+from discord_ai_wrapper import DiscordReadingAI
+
+# Global AI instance
+bot_ai = None
 
 def setup_commands(client, GUILD_ID):
     """Set up all slash commands for the bot"""
+    
+    # Initialize AI when commands are set up
+    global bot_ai
+    if bot_ai is None:
+        bot_ai = DiscordReadingAI()
+        print("🤖 AI wrapper created - will initialize when bot is ready")
     
     @client.tree.command(name="michael_saves", description="Michael Saves the Day", guild=GUILD_ID)
     async def michael_saves(interaction: discord.Interaction):
@@ -139,3 +154,27 @@ def setup_commands(client, GUILD_ID):
         except Exception as e:
             await interaction.response.send_message(f"❌ Error sending message: {str(e)}", ephemeral=True)
             print(f"❌ DM failed with error: {str(e)}")
+
+    @client.tree.command(name="sentiment", description="Check if text is positive or negative", guild=GUILD_ID)
+    async def ai_score(interaction: discord.Interaction, text: str):
+        """Check if text is positive or negative"""
+        global bot_ai
+        
+        # Check if AI is ready
+        if bot_ai is None or not bot_ai.is_ready:
+            await interaction.response.send_message("❌ AI is not ready yet.", ephemeral=True)
+            return
+        
+        await interaction.response.defer(ephemeral=True)
+        
+        try:
+            # Use sentiment analysis
+            result = await bot_ai.process_text_async(text, "sentiment")
+            
+            if result and 'result' in result:
+                await interaction.followup.send(f"**Text:** {text}\n\n{result['result']}")
+            else:
+                await interaction.followup.send("❌ Could not analyze sentiment.")
+                
+        except Exception as e:
+            await interaction.followup.send(f"❌ Error: {str(e)}")
