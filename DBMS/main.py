@@ -35,7 +35,6 @@ def main():
     keep_alive_thread = threading.Thread(target=keep_alive, daemon=True)
     keep_alive_thread.start()
     print("Keep-alive server started")
-    
     # Get Discord token from environment variables
     discord_token = os.getenv('DISCORD_TOKEN')
     if not discord_token:
@@ -50,7 +49,6 @@ def main():
     intents.voice_states = True
     # Initialize the bot
     client = Client(command_prefix="!", intents=intents)
-    
     # Get Guild ID from environment variables
     guild_id = os.getenv('GUILD_ID')
     if not guild_id:
@@ -108,16 +106,21 @@ def main():
             except discord.Forbidden:
                 await interaction.response.send_message("❌ I don't have permission to join that voice channel!", ephemeral=True)
                 return
-        
+
         # Look for Michael audio files (try WAV first, then MP3)
-        possible_files = ["audio/Michael.wav", "audio/Michael.mp3"]
+        # Get the directory where this script is located
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        possible_files = [
+            os.path.join(script_dir, "audio", "Michael.wav"),
+            os.path.join(script_dir, "audio", "Michael.mp3")
+        ]
         sound_path = None
         for file_path in possible_files:
             if os.path.exists(file_path):
                 sound_path = file_path
                 break
         if not sound_path:
-            await interaction.response.send_message("❌ Michael audio file not found!", ephemeral=True)
+            await interaction.response.send_message("❌ File not found!", ephemeral=True)
             return
         # Stop any currently playing audio
         if voice_client.is_playing():
