@@ -11,9 +11,13 @@ class Client(commands.Bot):
     async def on_ready(self):
         print(f'Logged in as {self.user}! (ID: {self.user.id})')
         try:
-            guild = discord.Object(id=692288049538924604)
-            synced = await self.tree.sync(guild=guild)
-            print(f'Synced {len(synced)} commands to the guild: {guild.id}')
+            guild_id = os.getenv('GUILD_ID')
+            if guild_id:
+                guild = discord.Object(id=int(guild_id))
+                synced = await self.tree.sync(guild=guild)
+                print(f'Synced {len(synced)} commands to the guild: {guild.id}')
+            else:
+                print('Warning: GUILD_ID not found, commands may not sync properly')
         except Exception as e:
             print(f'Error syncing commands: {e}')
     async def on_message(self, message):
@@ -47,7 +51,19 @@ def main():
     intents.voice_states = True
     # Initialize the bot
     client = Client(command_prefix="!", intents=intents)
-    GUILD_ID = discord.Object(id=692288049538924604)
+    
+    # Get Guild ID from environment variables
+    guild_id = os.getenv('GUILD_ID')
+    if not guild_id:
+        print("ERROR: GUILD_ID environment variable not found!")
+        print("Please set your Discord server ID in the environment variables.")
+        return
+    
+    try:
+        GUILD_ID = discord.Object(id=int(guild_id))
+    except ValueError:
+        print("ERROR: GUILD_ID must be a valid number!")
+        return
 
     @client.tree.command(name="michael_saves", description="Michael Saves the Day", guild=GUILD_ID)
     async def michael_saves(interaction: discord.Interaction):
