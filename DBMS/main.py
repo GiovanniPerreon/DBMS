@@ -25,7 +25,6 @@ class Client(commands.Bot):
         if message.author == self.user:
             return
         if message.content.startswith('Michael'):
-            await message.channel.send(f'Hello {message.author.name}!')
             await message.channel.send('<a:jd:1395904586317041794>')
         # On Reaction Add
         if message.content.startswith('M'):
@@ -81,7 +80,6 @@ def main():
         try:
             # Join the voice channel
             voice_client = await voice_channel.connect()
-            await interaction.response.send_message(f"✅ Joined {voice_channel.name}!", ephemeral=True)
         except discord.ClientException:
             await interaction.response.send_message("❌ I'm already connected to a voice channel!", ephemeral=True)
         except discord.Forbidden:
@@ -95,7 +93,6 @@ def main():
             return
         # Disconnect from voice
         await interaction.guild.voice_client.disconnect()
-        await interaction.response.send_message("👋 Left the voice channel!", ephemeral=True)
 
     @client.tree.command(name="play_michael", description="Play the Michael Saves audio file", guild=GUILD_ID)
     async def play_michael(interaction: discord.Interaction):
