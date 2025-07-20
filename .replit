@@ -1,4 +1,20 @@
-modules = ["python-3.12"]
+modules = ["python-3.12", "nodejs-23"]
 
 [nix]
 channel = "stable-24_05"
+
+[workflows]
+runButton = "Start Discord Bot"
+
+[[workflows.workflow]]
+name = "Start Discord Bot"
+author = 45241899
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd DBMS && python main.py"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
