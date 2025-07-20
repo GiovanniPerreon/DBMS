@@ -103,9 +103,18 @@ client.on('ready', async () => {
           console.error(data.toString().trim());
         });
         py.on('close', (code) => {
-          // Delete the WAV file after STT completes
-          fs.unlink(outFile, (err) => {
-            if (err) console.error(`Error deleting file: ${outFile}`);
+          // Delete all temp files starting with 'voice_' after STT completes
+          const audioDir = path.join(__dirname, 'audio');
+          fs.readdir(audioDir, (err, files) => {
+            if (err) return console.error(`Error reading audio dir: ${audioDir}`);
+            files.forEach(file => {
+              if (file.startsWith('voice_')) {
+                fs.unlink(path.join(audioDir, file), (err) => {
+                  if (err) console.error(`Error deleting file: ${file}`);
+                  else console.log(`Deleted temp file: ${file}`);
+                });
+              }
+            });
           });
         });
       });
