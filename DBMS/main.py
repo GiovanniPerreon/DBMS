@@ -77,7 +77,6 @@ def main():
     except ValueError:
         print("ERROR: GUILD_ID must be a valid number!")
         return
-
     # Setup all slash commands from the commands module
     setup_commands(client, GUILD_ID)
     

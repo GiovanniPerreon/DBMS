@@ -1,13 +1,16 @@
-// listener.js
-// Auto-join a voice channel and listen for audio when started
+// Discord voice listener: minimal version
 
 const { Client, GatewayIntentBits } = require('discord.js');
 const { joinVoiceChannel, EndBehaviorType } = require('@discordjs/voice');
+const prism = require('prism-media');
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const wav = require('wav');
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
-const VOICE_CHANNEL_ID = process.argv[2]; // Passed from Python command
+const VOICE_CHANNEL_ID = process.argv[2];
 
 const client = new Client({
   intents: [
@@ -19,7 +22,7 @@ const client = new Client({
 });
 
 client.on('ready', async () => {
-  console.log(`Logged in as ${client.user.tag}`);
+  // Bot is ready
   const guild = client.guilds.cache.get(GUILD_ID);
   if (!guild) {
     console.error('Guild not found!');
@@ -43,25 +46,73 @@ client.on('ready', async () => {
   const receiver = connection.receiver;
   receiver.speaking.on('start', (userId) => {
     const user = client.users.cache.get(userId);
-    console.log(`Listening to ${user ? user.username : userId}`);
+    // Start listening to user
 
-    const audioStream = receiver.subscribe(userId, {
+    const opusStream = receiver.subscribe(userId, {
       end: {
-        behavior: EndBehaviorType.AfterSilence,
-        duration: 100
+        behavior: EndBehaviorType.AfterInactivity,
+        duration: 100 // ms of silence before ending
       }
     });
 
-    audioStream.on('data', (chunk) => {
-      console.log(`Received audio chunk from ${user ? user.username : userId}: ${chunk.length} bytes`);
+    // Decode Opus to PCM using prism-media
+    const pcmStream = new prism.opus.Decoder({
+      rate: 48000,
+      channels: 1,
+      frameSize: 960
+    });
+    opusStream.pipe(pcmStream);
+
+    // Buffer PCM chunks
+    const audioChunks = [];
+    pcmStream.on('data', (chunk) => {
+      audioChunks.push(chunk);
     });
 
-    audioStream.on('end', () => {
-      console.log(`Stopped listening to ${user ? user.username : userId}`);
+    pcmStream.on('end', async () => {
+      // Stop listening to user
+      if (audioChunks.length === 0) {
+        // No audio received
+        return;
+      }
+      const audioDir = path.join(__dirname, 'audio');
+      if (!fs.existsSync(audioDir)) {
+        fs.mkdirSync(audioDir);
+      }
+      const outFile = path.join(audioDir, `voice_${userId}_${Date.now()}.wav`);
+
+      // Save PCM chunks as WAV file
+      const writer = new wav.FileWriter(outFile, {
+        channels: 1,
+        sampleRate: 48000,
+        bitDepth: 16
+      });
+      for (const chunk of audioChunks) {
+        writer.write(chunk);
+      }
+      writer.end();
+
+      writer.on('finish', async () => {
+        // Call Python STT script
+        const { spawn } = require('child_process');
+        const py = spawn('python', [path.join(__dirname, 'stt.py'), outFile]);
+        py.stdout.on('data', (data) => {
+          console.log(data.toString().trim());
+        });
+        py.stderr.on('data', (data) => {
+          console.error(data.toString().trim());
+        });
+        py.on('close', (code) => {
+          // Delete the WAV file after STT completes
+          fs.unlink(outFile, (err) => {
+            if (err) console.error(`Error deleting file: ${outFile}`);
+          });
+        });
+      });
     });
   });
 
-  console.log('👂 Joined voice channel and listening!');
+  // Joined voice channel
 });
 
 client.login(TOKEN);
