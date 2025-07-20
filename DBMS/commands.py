@@ -1,8 +1,24 @@
+
 import discord
 from discord.ext import commands
 from discord import app_commands
 import os
 from discord import SelectOption
+import subprocess
+
+class JSListener:
+    def __init__(self, js_path=None):
+        if js_path is None:
+            js_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "listener.js")
+        self.js_path = js_path
+
+    def listen(self, voice_channel_id):
+        try:
+            subprocess.Popen([
+                "node", self.js_path, str(voice_channel_id)
+            ])
+        except Exception as e:
+            print(f"Error running JS listen: {e}")
 
 def setup_commands(client, GUILD_ID):
     """Set up all slash commands for the bot"""
@@ -214,3 +230,14 @@ def setup_commands(client, GUILD_ID):
         except Exception as e:
             await interaction.response.send_message(f"❌ Error sending message: {str(e)}", ephemeral=True)
             print(f"❌ DM failed with error: {str(e)}")
+
+    # --- Add listen command at the end of setup_commands ---
+    @client.tree.command(name="listen", description="Run listener.js and join your voice channel", guild=GUILD_ID)
+    async def listen(interaction: discord.Interaction):
+        if interaction.user.voice is None:
+            await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
+            return
+        voice_channel_id = interaction.user.voice.channel.id
+        js_listener = JSListener()
+        js_listener.listen(voice_channel_id)
+        await interaction.response.send_message("Bot is now listening in your voice channel.", ephemeral=True)
