@@ -1,0 +1,3 @@
+soundfile
+vosk
+discord.py

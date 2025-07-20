@@ -15,11 +15,12 @@ from vosk import Model, KaldiRecognizer, SetLogLevel
 import json
 import os
 SetLogLevel(-1)
-model_path = os.path.abspath("model1")
+# Use relative path for model directory
+model_path = os.path.join(os.path.dirname(__file__), "model1")
 try:
     model = Model(model_path)
 except Exception as e:
-    print(f"Vosk model not found at '{model_path}'. Download a model from https://alphacephei.com/vosk/models and extract to './model'.")
+    print(f"Vosk model not found at '{model_path}'. Download a model from https://alphacephei.com/vosk/models and extract to './model1'.")
     sys.exit(1)
 
 rec = KaldiRecognizer(model, samplerate)
