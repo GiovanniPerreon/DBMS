@@ -57,6 +57,9 @@ class STTFileHandler(FileSystemEventHandler):
                 print("STT watcher: JS bot not active, skipping STT result processing.")
                 return
             try:
+                if not os.path.exists(event.src_path):
+                    print(f"STT error: File does not exist: {event.src_path}")
+                    return
                 with open(event.src_path, "r", encoding="utf-8") as f:
                     text = f.read().strip().lower()
                 if text and text != self.last_text:
