@@ -41,6 +41,32 @@ client.on('ready', async () => {
     selfDeaf: false
   });
 
+  // Mark JS bot as active
+  const jsActivePath = path.join(__dirname, 'js_active.txt');
+
+  function cleanupJsActive() {
+    if (fs.existsSync(jsActivePath)) {
+      fs.unlinkSync(jsActivePath);
+      console.log('js_active.txt cleaned up on exit.');
+    }
+  }
+
+  process.on('exit', cleanupJsActive);
+  process.on('SIGINT', () => {
+    cleanupJsActive();
+    process.exit();
+  });
+  process.on('SIGTERM', () => {
+    cleanupJsActive();
+    process.exit();
+  });
+
+  fs.writeFileSync(jsActivePath, 'active');
+
+  // Add leave watcher to disconnect when signaled
+  const startLeaveWatcher = require('./leave_watcher');
+  startLeaveWatcher(connection, jsActivePath);
+
   const receiver = connection.receiver;
   receiver.speaking.on('start', (userId) => {
     const user = client.users.cache.get(userId);

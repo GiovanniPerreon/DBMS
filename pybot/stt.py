@@ -28,3 +28,10 @@ rec.AcceptWaveform(data.tobytes())
 result = rec.Result()
 text = json.loads(result).get('text', '')
 print("STT: ", text)
+# Write STT result to file for bot integration
+result_file = os.path.join(os.path.dirname(__file__), "stt_result.txt")
+try:
+    with open(result_file, "w", encoding="utf-8") as f:
+        f.write(text)
+except Exception as e:
+    print(f"Error writing STT result: {e}")

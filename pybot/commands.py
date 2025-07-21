@@ -1,10 +1,10 @@
-
 import discord
 from discord.ext import commands
 from discord import app_commands
 import os
 from discord import SelectOption
 import subprocess
+from utils import signal_js_leave, is_js_mode
 
 class JSListener:
     def __init__(self, js_path=None):
@@ -22,6 +22,7 @@ class JSListener:
             print(f"Error running JS listen: {e}")
 
 def setup_commands(client, GUILD_ID):
+    # signal_js_leave is now imported at the top of the file
     """Set up all slash commands for the bot"""
     
     @client.tree.command(name="michael_saves", description="Michael Saves the Day", guild=GUILD_ID)
@@ -48,17 +49,28 @@ def setup_commands(client, GUILD_ID):
 
     @client.tree.command(name="leave_voice", description="Leave the current voice channel", guild=GUILD_ID)
     async def leave_voice(interaction: discord.Interaction):
-        # Check if bot is connected to voice
-        if interaction.guild.voice_client is None:
-            await interaction.response.send_message("❌ I'm not in a voice channel!", ephemeral=True)
-            return
-        
-        # Disconnect from voice
-        await interaction.guild.voice_client.disconnect()
-        await interaction.response.send_message("✅ Left the voice channel!", ephemeral=True)
+        # Signal listener.js to leave by writing a leave signal file
+        project_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+        leave_signal_path = os.path.join(project_root, "bot", "leave_signal.txt")
+        try:
+            with open(leave_signal_path, "w", encoding="utf-8") as f:
+                f.write("leave")
+            print("Leave signal written for listener.js")
+        except Exception as e:
+            print(f"Error writing leave signal: {e}")
+
+        # Try to disconnect Python bot if connected
+        if interaction.guild.voice_client is not None:
+            await interaction.guild.voice_client.disconnect()
+            await interaction.response.send_message("✅ Left the voice channel! (Python & JS bots signaled)", ephemeral=True)
+        else:
+            await interaction.response.send_message("✅ Requested all bots to leave the voice channel! (JS bot signaled)", ephemeral=True)
 
     @client.tree.command(name="play_song", description="Choose and play a song from the available list", guild=GUILD_ID)
     async def play_song(interaction: discord.Interaction):
+        # Always signal JS bot to leave before playing soundboard
+        signal_js_leave()
+        
         # Check if user is in a voice channel
         if interaction.user.voice is None:
             await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
@@ -146,6 +158,10 @@ def setup_commands(client, GUILD_ID):
 
     @client.tree.command(name="quick_sound", description="Quick access to popular soundboard sounds", guild=GUILD_ID)
     async def quick_sound(interaction: discord.Interaction):
+        # Only signal JS bot to leave and disconnect if in JS mode
+        if is_js_mode():
+            signal_js_leave()
+        
         """Quick dropdown menu for popular soundboard sounds"""
         # Check if user is in a voice channel
         if interaction.user.voice is None:
@@ -240,6 +256,13 @@ def setup_commands(client, GUILD_ID):
         if interaction.user.voice is None:
             await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
             return
+        # Prevent running /listen if JS bot is already active
+        if is_js_mode():
+            await interaction.response.send_message("❌ JS bot is already listening in the voice channel!", ephemeral=True)
+            return
+        # Always leave the call if not already listening (not in JS mode)
+        if interaction.guild.voice_client is not None:
+            await interaction.guild.voice_client.disconnect()
         voice_channel_id = interaction.user.voice.channel.id
         js_listener = JSListener()
         js_listener.listen(voice_channel_id)
@@ -247,6 +270,9 @@ def setup_commands(client, GUILD_ID):
 
     @client.tree.command(name="loop_song", description="Choose a song to play in a loop", guild=GUILD_ID)
     async def loop_song(interaction: discord.Interaction):
+        # Signal JS bot to leave before looping song
+        if is_js_mode():
+            signal_js_leave()
         if interaction.user.voice is None:
             await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
             return
