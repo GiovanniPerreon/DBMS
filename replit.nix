@@ -5,7 +5,7 @@ pkgs.mkShell {
     pkgs.nodejs_23
     pkgs.nodePackages.npm
     pkgs.python3Full
-    pkgs.ffmpeg
+    pkgs.ffmpeg-full
     pkgs.python3Packages.pip
     pkgs.python3Packages.soundfile
   ];
