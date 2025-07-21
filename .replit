@@ -1,4 +1,4 @@
-modules = ["python-3.12", "nodejs-23"]
+modules = ["python-3.11", "nodejs-20", "nix"]
 
 [nix]
 channel = "stable-24_05"
@@ -13,7 +13,7 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd DBMS && python main.py"
+args = "cd pybot && python main.py"
 
 [[ports]]
 localPort = 5000
