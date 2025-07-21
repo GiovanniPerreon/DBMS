@@ -52,6 +52,10 @@ class STTFileHandler(FileSystemEventHandler):
         if event.is_directory:
             return
         if os.path.basename(event.src_path) == "stt_result.txt":
+            from utils import is_js_mode
+            if not is_js_mode():
+                print("STT watcher: JS bot not active, skipping STT result processing.")
+                return
             try:
                 with open(event.src_path, "r", encoding="utf-8") as f:
                     text = f.read().strip().lower()
