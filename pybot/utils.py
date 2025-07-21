@@ -25,15 +25,6 @@ def signal_js_leave():
         with open(leave_signal_path, "w", encoding="utf-8") as f:
             f.write("leave")
         print("Leave signal written for listener.js (from utils.py)")
-        # Wait for JS bot to quit (wait for leave_signal.txt to be deleted)
-        import time
-        max_wait = 10  # seconds
-        waited = 0
-        while os.path.exists(leave_signal_path) and waited < max_wait:
-            time.sleep(0.5)
-            waited += 0.5
     except Exception as e:
         print(f"Error writing leave signal: {e}")
-    import time
     delete_all_audio_files(audio_dir)
-    time.sleep(3)  # Extra 3 seconds delay after everything else

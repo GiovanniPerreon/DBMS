@@ -9,7 +9,6 @@ module.exports = function(voiceConnection, jsActivePath) {
         if (voiceConnection && voiceConnection.disconnect) {
             voiceConnection.disconnect();
             console.log('Listener.js: Disconnected from voice due to leave signal.');
-            // Remove js_active.txt to mark JS bot as inactive
             if (jsActivePath && fs.existsSync(jsActivePath)) {
                 fs.unlink(jsActivePath, () => {});
             }
