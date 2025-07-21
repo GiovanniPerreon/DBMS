@@ -77,10 +77,7 @@ class STTFileHandler(FileSystemEventHandler):
 import asyncio
 async def play_song_in_voice(client, song_filename):
     from utils import signal_js_leave
-    # Signal JS bot to leave before playing song
     signal_js_leave()
-    print("[play_song_in_voice] Waiting for JS bot to leave...")
-    await asyncio.sleep(3)  # Wait 3 seconds for JS bot to disconnect
     print("[play_song_in_voice] Looking for a voice channel with a non-bot user...")
     for guild in client.guilds:
         for vc in guild.voice_channels:

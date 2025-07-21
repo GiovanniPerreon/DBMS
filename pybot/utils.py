@@ -21,3 +21,5 @@ def signal_js_leave():
             waited += 0.5
     except Exception as e:
         print(f"Error writing leave signal: {e}")
+    import time
+    time.sleep(3)  # Extra 3 seconds delay after everything else
