@@ -9,7 +9,8 @@ def delete_all_audio_files(audio_dir):
     if os.path.exists(audio_dir):
         for file in os.listdir(audio_dir):
             file_path = os.path.join(audio_dir, file)
-            if os.path.isfile(file_path):
+            # Only delete files that start with 'voice_'
+            if os.path.isfile(file_path) and file.startswith("voice_"):
                 try:
                     os.remove(file_path)
                     print(f"Deleted audio file: {file_path}")
