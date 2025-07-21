@@ -79,28 +79,33 @@ async def play_song_in_voice(client, song_filename):
     from utils import signal_js_leave
     # Signal JS bot to leave before playing song
     signal_js_leave()
-    # Find a guild and a voice channel with a connected user
+    print("[play_song_in_voice] Looking for a voice channel with a non-bot user...")
     for guild in client.guilds:
         for vc in guild.voice_channels:
-            # Find a member in the voice channel (not the bot)
             members = [m for m in vc.members if not m.bot]
             if members:
                 try:
-                    # Connect if not already connected
+                    print(f"[play_song_in_voice] Connecting to voice channel: {vc.name}")
                     voice_client = guild.voice_client
                     if voice_client is None or not voice_client.is_connected():
                         voice_client = await vc.connect()
-                    # Stop any currently playing audio
+                        print(f"[play_song_in_voice] Connected to {vc.name}")
+                    else:
+                        print(f"[play_song_in_voice] Already connected to {vc.name}")
                     if voice_client.is_playing():
+                        print("[play_song_in_voice] Stopping currently playing audio...")
                         voice_client.stop()
-                    # Play the song
                     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
                     sound_path = os.path.join(project_root, "audio", song_filename)
+                    print(f"[play_song_in_voice] Attempting to play: {sound_path}")
+                    if not os.path.exists(sound_path):
+                        print(f"[play_song_in_voice] ERROR: File not found: {sound_path}")
+                        return
                     source = discord.FFmpegOpusAudio(sound_path)
                     voice_client.play(source, after=lambda e: print(f'Error: {e}') if e else None)
-                    print(f"Playing {song_filename} in {vc.name}")
+                    print(f"[play_song_in_voice] Playing {song_filename} in {vc.name}")
                 except Exception as e:
-                    print(f"Error playing song: {e}")
+                    print(f"[play_song_in_voice] Error playing song: {e}")
                 return
 
 def main():
