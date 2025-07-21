@@ -137,16 +137,10 @@ client.on('ready', async () => {
           console.error(`STT error: ${data.toString().trim()}`);
         });
         py.on('close', (code) => {
-          // Delete all files starting with 'voice_' in the audio directory after STT completes
-          fs.readdir(audioDir, (err, files) => {
-            if (err) return;
-            files.forEach(file => {
-              if (file.startsWith('voice_')) {
-                fs.unlink(path.join(audioDir, file), err => {
-                  if (err) console.error(`Error deleting file: ${file}`);
-                });
-              }
-            });
+          // Delete only the processed voice file after STT completes
+          fs.unlink(outFile, err => {
+            if (err) console.error(`Error deleting processed file: ${outFile}`);
+            else console.log(`Deleted processed file: ${outFile}`);
           });
         });
       });
