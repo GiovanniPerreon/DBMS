@@ -69,7 +69,8 @@ def setup_commands(client, GUILD_ID):
     @client.tree.command(name="play_song", description="Choose and play a song from the available list", guild=GUILD_ID)
     async def play_song(interaction: discord.Interaction):
         # Always signal JS bot to leave before playing soundboard
-        signal_js_leave()
+        if is_js_mode():
+            signal_js_leave()
         
         # Check if user is in a voice channel
         if interaction.user.voice is None:
