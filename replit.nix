@@ -1,12 +1,9 @@
-{ pkgs }:
-pkgs.mkShell {
-  buildInputs = [
-    pkgs.python311
-    pkgs.nodejs_23
+{ pkgs }: {
+  deps = [
+    pkgs.ffmpeg
+    pkgs.python311Full
+    pkgs.nodejs
     pkgs.nodePackages.npm
-    pkgs.python3Full
-    pkgs.ffmpeg-full
-    pkgs.python3Packages.pip
-    pkgs.python3Packages.soundfile
+    pkgs.python311Packages.soundfile
   ];
 }
