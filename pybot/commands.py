@@ -244,3 +244,74 @@ def setup_commands(client, GUILD_ID):
         js_listener = JSListener()
         js_listener.listen(voice_channel_id)
         await interaction.response.send_message("Bot is now listening in your voice channel.", ephemeral=True)
+
+    @client.tree.command(name="loop_song", description="Choose a song to play in a loop", guild=GUILD_ID)
+    async def loop_song(interaction: discord.Interaction):
+        if interaction.user.voice is None:
+            await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
+            return
+
+        project_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+        audio_dir = os.path.join(project_root, "audio")
+        if not os.path.exists(audio_dir):
+            await interaction.response.send_message("❌ Audio directory not found!", ephemeral=True)
+            return
+
+        audio_extensions = ['.mp3', '.wav', '.ogg', '.m4a', '.flac']
+        audio_files = [f for f in os.listdir(audio_dir) if any(f.lower().endswith(ext) for ext in audio_extensions)]
+        if not audio_files:
+            await interaction.response.send_message("❌ No audio files found in the audio directory!", ephemeral=True)
+            return
+
+        class LoopSongSelect(discord.ui.Select):
+            def __init__(self):
+                options = []
+                for i, file in enumerate(audio_files[:25]):
+                    display_name = os.path.splitext(file)[0]
+                    options.append(SelectOption(
+                        label=display_name,
+                        description=f"Loop {display_name}",
+                        value=file
+                    ))
+                super().__init__(placeholder="Choose a song to loop...", options=options)
+
+            async def callback(self, interaction: discord.Interaction):
+                selected_file = self.values[0]
+                voice_client = interaction.guild.voice_client
+                if voice_client is None:
+                    try:
+                        voice_client = await interaction.user.voice.channel.connect()
+                    except discord.Forbidden:
+                        await interaction.response.send_message("❌ I don't have permission to join that voice channel!", ephemeral=True)
+                        return
+
+                sound_path = os.path.join(project_root, "audio", selected_file)
+
+                def after_play(e=None):
+                    if e:
+                        print(f'Error: {e}')
+                    if voice_client and voice_client.is_connected():
+                        source = discord.FFmpegOpusAudio(sound_path)
+                        voice_client.play(source, after=after_play)
+
+                if voice_client.is_playing():
+                    voice_client.stop()
+
+                try:
+                    source = discord.FFmpegOpusAudio(sound_path)
+                    voice_client.play(source, after=after_play)
+                    display_name = os.path.splitext(selected_file)[0]
+                    await interaction.response.send_message(f"🔁 Now looping: **{display_name}**", ephemeral=True)
+                except Exception as e:
+                    await interaction.response.send_message(f"❌ Error playing audio: {str(e)}", ephemeral=True)
+
+        class LoopSongView(discord.ui.View):
+            def __init__(self):
+                super().__init__(timeout=60)
+                self.add_item(LoopSongSelect())
+            async def on_timeout(self):
+                for item in self.children:
+                    item.disabled = True
+
+        view = LoopSongView()
+        await interaction.response.send_message("🔁 **Choose a song to loop:**", view=view, ephemeral=True)
