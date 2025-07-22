@@ -2,8 +2,6 @@ import os
 import discord
 
 async def play_mito_in_voice(client):
-    from utils import signal_js_leave
-    signal_js_leave()
     # Add delay to allow Discord to release the channel
     import asyncio
     await asyncio.sleep(4)
@@ -14,7 +12,7 @@ async def play_mito_in_voice(client):
             if members:
                 try:
                     print(f"[play_mito_in_voice] Connecting to voice channel: {vc.name}")
-                    voice_client = guild.voice_client
+                    voice_client = discord.utils.get(client.voice_clients, guild=guild)
                     if voice_client is None or not voice_client.is_connected():
                         voice_client = await vc.connect()
                         print(f"[play_mito_in_voice] Connected to {vc.name}")
