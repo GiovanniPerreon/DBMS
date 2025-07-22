@@ -26,7 +26,7 @@ class MyAudioSink(AudioSink):
         from discord.ext.voice_recv.opus import VoiceData
         voice_data = VoiceData(pcm=pcm)
         # Use persistent WaveSink per user
-        if user_id not in self.wave_sinks:
+        if self.wave_sinks.get(user_id) is None:
             self.wave_sinks[user_id] = WaveSink(wav_path)
             self.wave_durations[user_id] = 0
         self.wave_sinks[user_id].write(user_id, voice_data)
