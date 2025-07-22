@@ -1,28 +1,12 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+from discord.ext.voice_recv import VoiceRecvClient
 import os
 from discord import SelectOption
 import subprocess
-from utils import signal_js_leave, is_js_mode
-
-class JSListener:
-    def __init__(self, js_path=None):
-        if js_path is None:
-            project_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-            js_path = os.path.join(project_root, "bot", "listener.js")
-        self.js_path = js_path
-
-    def listen(self, voice_channel_id):
-        try:
-            subprocess.Popen([
-                "node", self.js_path, str(voice_channel_id)
-            ])
-        except Exception as e:
-            print(f"Error running JS listen: {e}")
 
 def setup_commands(client, GUILD_ID):
-    # signal_js_leave is now imported at the top of the file
     """Set up all slash commands for the bot"""
     
     @client.tree.command(name="michael_saves", description="Michael Saves the Day", guild=GUILD_ID)
@@ -39,8 +23,8 @@ def setup_commands(client, GUILD_ID):
         # Get the user's voice channel
         voice_channel = interaction.user.voice.channel
         try:
-            # Join the voice channel
-            voice_client = await voice_channel.connect()
+            # Join the voice channel with VoiceRecvClient
+            voice_client = await voice_channel.connect(cls=VoiceRecvClient)
             await interaction.response.send_message(f"✅ Joined **{voice_channel.name}**!", ephemeral=True)
         except discord.ClientException:
             await interaction.response.send_message("❌ I'm already connected to a voice channel!", ephemeral=True)
@@ -49,43 +33,25 @@ def setup_commands(client, GUILD_ID):
 
     @client.tree.command(name="leave_voice", description="Leave the current voice channel", guild=GUILD_ID)
     async def leave_voice(interaction: discord.Interaction):
-        # Signal listener.js to leave by writing a leave signal file
-        project_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-        leave_signal_path = os.path.join(project_root, "bot", "leave_signal.txt")
-        try:
-            with open(leave_signal_path, "w", encoding="utf-8") as f:
-                f.write("leave")
-            print("Leave signal written for listener.js")
-        except Exception as e:
-            print(f"Error writing leave signal: {e}")
-
         # Try to disconnect Python bot if connected
         if interaction.guild.voice_client is not None:
             await interaction.guild.voice_client.disconnect()
-            await interaction.response.send_message("✅ Left the voice channel! (Python & JS bots signaled)", ephemeral=True)
-        else:
-            await interaction.response.send_message("✅ Requested all bots to leave the voice channel! (JS bot signaled)", ephemeral=True)
+            await interaction.response.send_message("✅ Left the voice channel!", ephemeral=True)
 
     @client.tree.command(name="play_song", description="Choose and play a song from the available list", guild=GUILD_ID)
-    async def play_song(interaction: discord.Interaction):
-        # Always signal JS bot to leave before playing soundboard
-        if is_js_mode():
-            signal_js_leave()
-        
+    async def play_song(interaction: discord.Interaction): 
         # Check if user is in a voice channel
         if interaction.user.voice is None:
             await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
             return
-        
         # Get available audio files
         # Always use the audio directory at the project root
         project_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
         audio_dir = os.path.join(project_root, "audio")
-        
         if not os.path.exists(audio_dir):
             await interaction.response.send_message("❌ Audio directory not found!", ephemeral=True)
             return
-        
+
         # Find all audio files
         audio_extensions = ['.mp3', '.wav', '.ogg', '.m4a', '.flac']
         audio_files = []
@@ -119,7 +85,7 @@ def setup_commands(client, GUILD_ID):
                 voice_client = interaction.guild.voice_client
                 if voice_client is None:
                     try:
-                        voice_client = await interaction.user.voice.channel.connect()
+                        voice_client = await interaction.user.voice.channel.connect(cls=VoiceRecvClient)
                     except discord.Forbidden:
                         await interaction.response.send_message("❌ I don't have permission to join that voice channel!", ephemeral=True)
                         return
@@ -159,24 +125,17 @@ def setup_commands(client, GUILD_ID):
 
     @client.tree.command(name="quick_sound", description="Quick access to popular soundboard sounds", guild=GUILD_ID)
     async def quick_sound(interaction: discord.Interaction):
-        # Only signal JS bot to leave and disconnect if in JS mode
-        if is_js_mode():
-            signal_js_leave()
-        
         """Quick dropdown menu for popular soundboard sounds"""
         # Check if user is in a voice channel
         if interaction.user.voice is None:
             await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
             return
-        
         try:
             # Get soundboard sounds from the guild
             sounds = await interaction.guild.fetch_soundboard_sounds()
-            
             if not sounds:
                 await interaction.response.send_message("❌ No soundboard sounds found in this server!", ephemeral=True)
                 return
-            
             # Create dropdown menu for soundboard sounds
             class SoundboardSelect(discord.ui.Select):
                 def __init__(self, available_sounds, voice_channel):
@@ -199,7 +158,7 @@ def setup_commands(client, GUILD_ID):
                     voice_client = interaction.guild.voice_client
                     if voice_client is None:
                         try:
-                            voice_client = await self.voice_channel.connect()
+                            voice_client = await self.voice_channel.connect(cls=VoiceRecvClient)
                         except discord.Forbidden:
                             await interaction.response.send_message("❌ I don't have permission to join that voice channel!", ephemeral=True)
                             return
@@ -258,19 +217,17 @@ def setup_commands(client, GUILD_ID):
             await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
             return
         # Connect to voice with VoiceRecvClient and start listening
-        from discord.ext.voice_recv import VoiceRecvClient
         from voice_listener import MyAudioSink
         voice_channel = interaction.user.voice.channel
-        voice_client = await voice_channel.connect(cls=VoiceRecvClient)
+        voice_client = interaction.guild.voice_client
+        if voice_client is None:
+            voice_client = await voice_channel.connect(cls=VoiceRecvClient)
         sink = MyAudioSink()
         voice_client.listen(sink)
         await interaction.response.send_message(f"🔊 Listening to voice channel: {voice_channel.name}", ephemeral=True)
 
     @client.tree.command(name="loop_song", description="Choose a song to play in a loop", guild=GUILD_ID)
     async def loop_song(interaction: discord.Interaction):
-        # Signal JS bot to leave before looping song
-        if is_js_mode():
-            signal_js_leave()
         if interaction.user.voice is None:
             await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
             return
@@ -286,7 +243,6 @@ def setup_commands(client, GUILD_ID):
         if not audio_files:
             await interaction.response.send_message("❌ No audio files found in the audio directory!", ephemeral=True)
             return
-
         class LoopSongSelect(discord.ui.Select):
             def __init__(self):
                 options = []
@@ -304,7 +260,7 @@ def setup_commands(client, GUILD_ID):
                 voice_client = interaction.guild.voice_client
                 if voice_client is None:
                     try:
-                        voice_client = await interaction.user.voice.channel.connect()
+                        voice_client = await interaction.user.voice.channel.connect(cls=VoiceRecvClient)
                     except discord.Forbidden:
                         await interaction.response.send_message("❌ I don't have permission to join that voice channel!", ephemeral=True)
                         return

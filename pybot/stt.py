@@ -33,5 +33,11 @@ result_file = os.path.join(os.path.dirname(__file__), "stt_result.txt")
 try:
     with open(result_file, "w", encoding="utf-8") as f:
         f.write(text)
+    # Delete the processed audio file
+    try:
+        os.remove(audio_path)
+        print(f"Deleted processed audio file: {audio_path}")
+    except Exception as e:
+        print(f"Error deleting audio file {audio_path}: {e}")
 except Exception as e:
     print(f"Error writing STT result: {e}")
