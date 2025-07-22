@@ -18,6 +18,8 @@ class STTFileHandler(FileSystemEventHandler):
         super().__init__()
         self.client = client
         self.last_text = None
+        self.last_play_time = 0  # For cooldown
+        self.cooldown_seconds = 30  # Change as needed
 
     def on_modified(self, event):
         if event.is_directory:
@@ -29,10 +31,17 @@ class STTFileHandler(FileSystemEventHandler):
                     return
                 with open(event.src_path, "r", encoding="utf-8") as f:
                     text = f.read().strip().lower()
+                import time
+                now = time.time()
                 if text and text != self.last_text:
                     self.last_text = text
                     # Check for trigger words
-                    if "michael" in text or "saves" in text or "mike" in text:
+                    if ("michael" in text or "saves" in text or "mike" in text):
+                        # Cooldown check
+                        if now - self.last_play_time < self.cooldown_seconds:
+                            print(f"Song cooldown active. Try again later.")
+                            return
+                        self.last_play_time = now
                         # Call the play_mito_in_voice function directly
                         from audio_actions import play_mito_in_voice
                         loop = getattr(self.client, 'loop', None)
