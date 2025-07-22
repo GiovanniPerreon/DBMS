@@ -252,22 +252,19 @@ def setup_commands(client, GUILD_ID):
             print(f"❌ DM failed with error: {str(e)}")
 
     # --- Add listen command at the end of setup_commands ---
-    @client.tree.command(name="listen", description="Run listener.js and join your voice channel", guild=GUILD_ID)
+    @client.tree.command(name="listen", description="Start Python voice listener in your voice channel", guild=GUILD_ID)
     async def listen(interaction: discord.Interaction):
         if interaction.user.voice is None:
             await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
             return
-        # Prevent running /listen if JS bot is already active
-        if is_js_mode():
-            await interaction.response.send_message("❌ JS bot is already listening in the voice channel!", ephemeral=True)
-            return
-        # Always leave the call if not already listening (not in JS mode)
-        if interaction.guild.voice_client is not None:
-            await interaction.guild.voice_client.disconnect()
-        voice_channel_id = interaction.user.voice.channel.id
-        js_listener = JSListener()
-        js_listener.listen(voice_channel_id)
-        await interaction.response.send_message("Bot is now listening in your voice channel.", ephemeral=True)
+        # Connect to voice with VoiceRecvClient and start listening
+        from discord.ext.voice_recv import VoiceRecvClient
+        from voice_listener import MyAudioSink
+        voice_channel = interaction.user.voice.channel
+        voice_client = await voice_channel.connect(cls=VoiceRecvClient)
+        sink = MyAudioSink()
+        voice_client.listen(sink)
+        await interaction.response.send_message(f"🔊 Listening to voice channel: {voice_channel.name}", ephemeral=True)
 
     @client.tree.command(name="loop_song", description="Choose a song to play in a loop", guild=GUILD_ID)
     async def loop_song(interaction: discord.Interaction):

@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext.voice_recv import VoiceRecvClient
 from discord import app_commands
 import os
 import threading
@@ -9,36 +9,7 @@ from commands import setup_commands
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-# Custom bot client class
-class Client(commands.Bot):
-    # Called when bot is readyc
-    async def on_ready(self):
-        print(f'Logged in as {self.user}! (ID: {self.user.id})')
-        try:
-            guild_id = os.getenv('GUILD_ID')
-            if guild_id:
-                guild = discord.Object(id=int(guild_id))
-                synced = await self.tree.sync(guild=guild)
-                print(f'Synced {len(synced)} commands to the guild: {guild.id}')
-            else:
-                print('Warning: GUILD_ID not found, commands may not sync properly')
-        except Exception as e:
-            print(f'Error syncing commands: {e}')
-    
-    async def on_message(self, message):
-        # Don't respond to own messages
-        if message.author == self.user:
-            return
-        
-        # Log all messages the bot can see
-        print(f"[{message.channel.name}] {message.author.display_name}: {message.content}")
-        
-        # Respond to specific messages
-        if message.content.startswith('Michael'):
-            await message.channel.send('<a:jd:1395904586317041794>')
-        # On Reaction Add
-        if message.content.startswith('M'):
-            await message.add_reaction('<a:jd:1395904586317041794>')
+    # Removed custom Client class. Use VoiceRecvClient directly.
 
 
 # --- Watchdog event handler ---
@@ -101,7 +72,32 @@ def main():
     intents.members = True
     intents.presences = True
 
-    client = Client(command_prefix="!", intents=intents)
+    from discord.ext import commands
+    client = commands.Bot(command_prefix="!", intents=intents)
+
+    @client.event
+    async def on_ready():
+        print(f'Logged in as {client.user}! (ID: {client.user.id})')
+        try:
+            guild_id = os.getenv('GUILD_ID')
+            if guild_id:
+                guild = discord.Object(id=int(guild_id))
+                synced = await client.tree.sync(guild=guild)
+                print(f'Synced {len(synced)} commands to the guild: {guild.id}')
+            else:
+                print('Warning: GUILD_ID not found, commands may not sync properly')
+        except Exception as e:
+            print(f'Error syncing commands: {e}')
+
+    @client.event
+    async def on_message(message):
+        if message.author == client.user:
+            return
+        print(f"[{message.channel.name}] {message.author.display_name}: {message.content}")
+        if message.content.startswith('Michael'):
+            await message.channel.send('<a:jd:1395904586317041794>')
+        if message.content.startswith('M'):
+            await message.add_reaction('<a:jd:1395904586317041794>')
 
     guild_id = os.getenv('GUILD_ID')
     if not guild_id:
