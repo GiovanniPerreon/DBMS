@@ -32,7 +32,7 @@ def register_fun_commands(client, GUILD_ID):
             user_points[self.user_id] = points + payout
             save_data()
             await interaction.response.edit_message(content=f"{msg}\n💰 Your points: {user_points[self.user_id]}", view=GambleView(self.user_id))
-    DATA_FILE = os.path.join("pybot", "points_data.json")
+    DATA_FILE = os.path.join("pybot", "discord_commands", "points_data.json")
     def load_data():
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, "r") as f:
