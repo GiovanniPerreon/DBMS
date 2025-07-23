@@ -30,9 +30,29 @@ def register_fun_commands(client, GUILD_ID):
             self.add_item(GambleButton(self.user_id, 0.25, label="🎲 Gamble 25%", bot_bank=bot_bank))
             self.add_item(GambleButton(self.user_id, 0.5, label="🎲🎲 Gamble 50%", bot_bank=bot_bank))
             self.add_item(GambleButton(self.user_id, 1.0, label="🎲🎲🎲 All In", bot_bank=bot_bank, style=discord.ButtonStyle.primary))
+            self.add_item(LeaderboardButton())
 
-        async def interaction_check(self, interaction):
-            return interaction.user.id == self.user_id
+    class LeaderboardButton(discord.ui.Button):
+        def __init__(self):
+            super().__init__(label="🏆 Leaderboard", style=discord.ButtonStyle.secondary)
+        async def callback(self, interaction):
+            # Sort users by points, descending
+            top = sorted(user_points.items(), key=lambda x: x[1], reverse=True)[:10]
+            embed = discord.Embed(title="🏆 Leaderboard", color=discord.Color.gold())
+            lines = []
+            # Add bot bank as the first entry
+            lines.append(f"**🤖 Bot Bank** — {bot_bank['amount']} points")
+            if not top:
+                lines.append("No users have points yet.")
+            else:
+                for idx, (uid, pts) in enumerate(top, 1):
+                    member = interaction.guild.get_member(int(uid)) if interaction.guild else None
+                    name = member.display_name if member else f"User {uid}"
+                    lines.append(f"**{idx}. {name}** — {pts} points")
+            embed.description = "\n".join(lines)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        # No interaction_check needed; view already restricts to correct user
 
     class FarmButton(discord.ui.Button):
         def __init__(self, user_id):
@@ -80,7 +100,7 @@ def register_fun_commands(client, GUILD_ID):
 
     @client.tree.command(name="gamble", description="Open the gambling panel", guild=GUILD_ID)
     async def gamble(interaction: discord.Interaction):
-        user_id = interaction.user.id
+        user_id = str(interaction.user.id)
         if user_id not in user_points:
             user_points[user_id] = 100  # Start with 100 points
             save_data()

@@ -56,8 +56,8 @@ class STTFileHandler(FileSystemEventHandler):
 
 # --- Play song in voice channel ---
 import asyncio
-async def play_song_in_voice(client, song_filename):
-    pass  # Logic moved to play_mito command
+# async def play_song_in_voice(client, song_filename):
+#     pass  # Logic moved to play_mito command
 
 def main():
     """Main function to start the bot and keep-alive server"""
