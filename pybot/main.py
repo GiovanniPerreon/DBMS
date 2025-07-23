@@ -18,7 +18,7 @@ class STTFileHandler(FileSystemEventHandler):
         super().__init__()
         self.client = client
         self.last_text = None
-        self.last_play_time = 0  # For cooldown
+        self.last_play_time = 0   # For cooldown
         self.cooldown_seconds = 30  # Change as needed
 
     def on_modified(self, event):
