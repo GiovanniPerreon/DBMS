@@ -4,11 +4,26 @@ import json
 import os
 
 def register_fun_commands(client, GUILD_ID):
+    DATA_FILE = os.path.join(os.path.dirname(__file__), "points_data.json")
+    def load_data():
+        if os.path.exists(DATA_FILE):
+            with open(DATA_FILE, "r") as f:
+                data = json.load(f)
+                return data.get("user_points", {}), data.get("bot_bank", {"amount": 0})
+        return {}, {"amount": 0}
+
+    def save_data():
+        with open(DATA_FILE, "w") as f:
+            json.dump({"user_points": user_points, "bot_bank": bot_bank}, f)
+
+    user_points, bot_bank = load_data()
     class SlotButton(discord.ui.Button):
         def __init__(self, user_id):
             super().__init__(label="🎰 Slot Machine", style=discord.ButtonStyle.success)
             self.user_id = user_id
         async def callback(self, interaction):
+            nonlocal user_points, bot_bank
+            user_points, bot_bank = load_data()
             symbols = ["🍒", "🍋", "🔔", "⭐", "🍀", "💎"]
             spin = [random.choice(symbols) for _ in range(3)]
             result = " ".join(spin)
@@ -32,19 +47,6 @@ def register_fun_commands(client, GUILD_ID):
             user_points[self.user_id] = points + payout
             save_data()
             await interaction.response.edit_message(content=f"{msg}\n💰 Your points: {user_points[self.user_id]}", view=GambleView(self.user_id))
-    DATA_FILE = os.path.join(os.path.dirname(__file__), "points_data.json")
-    def load_data():
-        if os.path.exists(DATA_FILE):
-            with open(DATA_FILE, "r") as f:
-                data = json.load(f)
-                return data.get("user_points", {}), data.get("bot_bank", {"amount": 0})
-        return {}, {"amount": 0}
-
-    def save_data():
-        with open(DATA_FILE, "w") as f:
-            json.dump({"user_points": user_points, "bot_bank": bot_bank}, f)
-
-    user_points, bot_bank = load_data()
 
     class GambleView(discord.ui.View):
         def __init__(self, user_id):
@@ -66,6 +68,8 @@ def register_fun_commands(client, GUILD_ID):
         def __init__(self):
             super().__init__(label="🏆 Leaderboard", style=discord.ButtonStyle.secondary)
         async def callback(self, interaction):
+            nonlocal user_points, bot_bank
+            user_points, bot_bank = load_data()
             # Sort users by points, descending
             top = sorted(user_points.items(), key=lambda x: x[1], reverse=True)[:10]
             embed = discord.Embed(title="🏆 Leaderboard", color=discord.Color.gold())
@@ -89,6 +93,8 @@ def register_fun_commands(client, GUILD_ID):
             super().__init__(label="🌾Farm Points", style=discord.ButtonStyle.success)
             self.user_id = user_id
         async def callback(self, interaction):
+            nonlocal user_points, bot_bank
+            user_points, bot_bank = load_data()
             import random
             points = user_points.get(self.user_id, 0)
             luck = random.random()
@@ -111,6 +117,8 @@ def register_fun_commands(client, GUILD_ID):
             self.percent = percent
             self.bot_bank = bot_bank
         async def callback(self, interaction):
+            nonlocal user_points, bot_bank
+            user_points, bot_bank = load_data()
             import random
             points = user_points.get(self.user_id, 0)
             gamble_amount = max(1, int(points * self.percent))
@@ -137,6 +145,8 @@ def register_fun_commands(client, GUILD_ID):
 
     @client.tree.command(name="gamble", description="Open the gambling panel", guild=GUILD_ID)
     async def gamble(interaction: discord.Interaction):
+        nonlocal user_points, bot_bank
+        user_points, bot_bank = load_data()
         user_id = str(interaction.user.id)
         if user_id not in user_points:
             user_points[user_id] = 100  # Start with 100 points
