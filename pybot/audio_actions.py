@@ -34,11 +34,11 @@ import discord
 import os
 async def play_gambling_audio(client):
     """Play Gambling.wav in the first voice channel with a non-bot user."""
-    await play_audio_in_voice(client, "Gambling.wav", delay=1)
+    await play_audio_in_voice(client, "Gambling.mp3", delay=1)
 
 async def play_mito_in_voice(client):
     await play_audio_in_voice(client, "Il_mio_mito.mp3", delay=4)
 
 async def play_dang_it_audio(client):
     """Play dang_it.wav in the first voice channel with a non-bot user."""
-    await play_audio_in_voice(client, "dang_it.wav", delay=1)
+    await play_audio_in_voice(client, "dang_it.mp3", delay=1)

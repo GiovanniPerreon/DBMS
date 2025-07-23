@@ -4,6 +4,34 @@ import json
 import os
 
 def register_fun_commands(client, GUILD_ID):
+    class SlotButton(discord.ui.Button):
+        def __init__(self, user_id):
+            super().__init__(label="🎰 Slot Machine", style=discord.ButtonStyle.success)
+            self.user_id = user_id
+        async def callback(self, interaction):
+            symbols = ["🍒", "🍋", "🔔", "⭐", "🍀", "💎"]
+            spin = [random.choice(symbols) for _ in range(3)]
+            result = " ".join(spin)
+            payout = 0
+            if spin[0] == spin[1] == spin[2]:
+                payout = 1000
+                msg = f"JACKPOT! {result} You win {payout} points!"
+            elif spin[0] == spin[1] or spin[1] == spin[2] or spin[0] == spin[2]:
+                payout = 100
+                msg = f"Nice! {result} You win {payout}x points!"
+            else:
+                msg = f"{result} No win this time."
+                try:
+                    from audio_actions import play_dang_it_audio
+                    loop = getattr(interaction.client, 'loop', None)
+                    if loop and loop.is_running():
+                        loop.create_task(play_dang_it_audio(interaction.client))
+                except Exception as e:
+                    print(f"Error playing dang_it.wav: {e}")
+            points = user_points.get(self.user_id, 0)
+            user_points[self.user_id] = points + payout
+            save_data()
+            await interaction.response.edit_message(content=f"{msg}\n💰 Your points: {user_points[self.user_id]}", view=GambleView(self.user_id))
     DATA_FILE = "points_data.json"
     def load_data():
         if os.path.exists(DATA_FILE):
@@ -31,6 +59,7 @@ def register_fun_commands(client, GUILD_ID):
             self.add_item(GambleButton(self.user_id, 0.25, label="🎲 Gamble 25%", bot_bank=bot_bank))
             self.add_item(GambleButton(self.user_id, 0.5, label="🎲🎲 Gamble 50%", bot_bank=bot_bank))
             self.add_item(GambleButton(self.user_id, 1.0, label="🎲🎲🎲 All In", bot_bank=bot_bank, style=discord.ButtonStyle.primary))
+            self.add_item(SlotButton(self.user_id))
             self.add_item(LeaderboardButton())
 
     class LeaderboardButton(discord.ui.Button):
@@ -96,6 +125,13 @@ def register_fun_commands(client, GUILD_ID):
                 user_points[self.user_id] = points - gamble_amount
                 self.bot_bank["amount"] += gamble_amount
                 msg = f"You LOST! You lost {gamble_amount} points!"
+                try:
+                    from audio_actions import play_dang_it_audio
+                    loop = getattr(interaction.client, 'loop', None)
+                    if loop and loop.is_running():
+                        loop.create_task(play_dang_it_audio(interaction.client))
+                except Exception as e:
+                    print(f"Error playing dang_it.wav: {e}")
             save_data()
             await interaction.response.edit_message(content=f"{msg}\n💰 Current points: {user_points[self.user_id]}\n🏦 Bot Bank: {self.bot_bank['amount']}", view=GambleView(self.user_id))
 
@@ -107,44 +143,14 @@ def register_fun_commands(client, GUILD_ID):
             save_data()
         view = GambleView(user_id)
         await interaction.response.send_message(f"Gambling Panel\n💰 Current points: {user_points[user_id]}\n🏦 Bot Bank: {bot_bank['amount']}", view=view, ephemeral=True)
-        # Play Gambling.wav after the panel opens
+        # Play Gambling.mp3 after the panel opens
         try:
             from audio_actions import play_gambling_audio
             loop = getattr(interaction.client, 'loop', None)
             if loop and loop.is_running():
                 loop.create_task(play_gambling_audio(interaction.client))
         except Exception as e:
-            print(f"Error playing Gambling.wav: {e}")
-
-    @client.tree.command(name="slot", description="Spin the slot machine to win points!", guild=GUILD_ID)
-    async def slot(interaction: discord.Interaction):
-        user_id = str(interaction.user.id)
-        if user_id not in user_points:
-            user_points[user_id] = 100
-        symbols = ["🍒", "🍋", "🔔", "⭐", "🍀", "💎"]
-        spin = [random.choice(symbols) for _ in range(3)]
-        result = " ".join(spin)
-        payout = 0
-        # Simple payout logic
-        if spin[0] == spin[1] == spin[2]:
-            payout = 1000
-            msg = f"JACKPOT! {result} You win {payout} points!"
-        elif spin[0] == spin[1] or spin[1] == spin[2] or spin[0] == spin[2]:
-            payout = 100
-            msg = f"Nice! {result} You win {payout} points!"
-        else:
-            msg = f"{result} No win this time."
-            # Play dang_it.wav on loss
-            try:
-                from audio_actions import play_dang_it_audio
-                loop = getattr(interaction.client, 'loop', None)
-                if loop and loop.is_running():
-                    loop.create_task(play_dang_it_audio(interaction.client))
-            except Exception as e:
-                print(f"Error playing dang_it.wav: {e}")
-        user_points[user_id] += payout
-        save_data()
-        await interaction.response.send_message(f"{msg}\n💰 Your points: {user_points[user_id]}", ephemeral=True)
+            print(f"Error playing Gambling.mp3: {e}")
 
     @client.tree.command(name="michael_saves", description="Michael Saves the Day", guild=GUILD_ID)
     async def michael_saves(interaction: discord.Interaction):
