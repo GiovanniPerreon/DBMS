@@ -42,7 +42,7 @@ UNIT_POOL = [
         "ability": "Inferno: Deals 30 splash damage to all enemies at the end of the turn."
     },
     {
-        "name": "Michael Saves",
+        "name": "Michael_Saves",
         "stars": 6,
         "image": "images/Michael_Saves.png",
         "stats": {"HP": 250, "ATK": 100, "DEF": 60},
@@ -95,6 +95,12 @@ def get_random_unit():
             candidates = [u for u in UNIT_POOL if u["stars"] == stars]
             return random.choice(candidates)
     return random.choice([u for u in UNIT_POOL if u["stars"] == 1])
+
+def get_unit_image_path(unit):
+    # Returns absolute path for unit image, using same logic as DATA_FILE
+    path = os.path.join(os.path.dirname(__file__), unit['image'])
+    print("Resolved image path:", path, "Exists:", os.path.exists(path))
+    return path
 
 # Register gacha commands
 
@@ -202,9 +208,16 @@ def register_gacha_commands(client, GUILD_ID):
             await interaction.response.send_message(f"❌ No unit found with name '{name}'.", ephemeral=True)
             return
         embed = discord.Embed(title=f"{unit['name']} ({unit['stars']}⭐)", color=discord.Color.blue())
-        image_path = os.path.abspath(unit['image'])
+        image_path = get_unit_image_path(unit)
+        
         if os.path.exists(image_path):
             embed.set_image(url=f"attachment://{os.path.basename(image_path)}")
+        stats = unit["stats"]
+        stats_str = "\n".join([f"**{k}:** {v}" for k, v in stats.items()])
+        embed.add_field(name="Stats", value=stats_str, inline=False)
+        embed.add_field(name="Ability", value=unit["ability"], inline=False)
+        # If image exists, send as file
+        if os.path.exists(image_path):
             file = discord.File(image_path, filename=os.path.basename(image_path))
             await interaction.response.send_message(embed=embed, file=file, ephemeral=True)
         else:
