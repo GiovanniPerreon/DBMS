@@ -202,14 +202,17 @@ def register_gacha_commands(client, GUILD_ID):
             await interaction.response.send_message(f"❌ No unit found with name '{name}'.", ephemeral=True)
             return
         embed = discord.Embed(title=f"{unit['name']} ({unit['stars']}⭐)", color=discord.Color.blue())
-        embed.set_image(url=f"attachment://{os.path.basename(unit['image'])}") if os.path.exists(unit['image']) else None
+        # Use absolute path for image
+        image_path = os.path.abspath(unit['image'])
+        if os.path.exists(image_path):
+            embed.set_image(url=f"attachment://{os.path.basename(image_path)}")
         stats = unit["stats"]
         stats_str = "\n".join([f"**{k}:** {v}" for k, v in stats.items()])
         embed.add_field(name="Stats", value=stats_str, inline=False)
         embed.add_field(name="Ability", value=unit["ability"], inline=False)
         # If image exists, send as file
-        if os.path.exists(unit['image']):
-            file = discord.File(unit['image'], filename=os.path.basename(unit['image']))
+        if os.path.exists(image_path):
+            file = discord.File(image_path, filename=os.path.basename(image_path))
             await interaction.response.send_message(embed=embed, file=file, ephemeral=True)
         else:
             await interaction.response.send_message(embed=embed, ephemeral=True)
