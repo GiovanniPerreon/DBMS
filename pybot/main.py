@@ -48,7 +48,7 @@ class STTFileHandler(FileSystemEventHandler):
                         if loop and loop.is_running():
                             future = asyncio.run_coroutine_threadsafe(
                                 play_mito_in_voice(self.client), loop)
-                        else:
+                        else:   
                             print("Discord event loop not running, cannot play song.")
                         return
             except Exception as e:
