@@ -1,3 +1,6 @@
+import discord
+from discord.ext.voice_recv import VoiceRecvClient
+import os
 async def play_audio_in_voice(client, filename, delay=1):
     """Play any audio file in the first voice channel with a non-bot user."""
     import asyncio
@@ -11,7 +14,7 @@ async def play_audio_in_voice(client, filename, delay=1):
                     print(f"[play_audio_in_voice] Connecting to voice channel: {vc.name}")
                     voice_client = discord.utils.get(client.voice_clients, guild=guild)
                     if voice_client is None or not voice_client.is_connected():
-                        voice_client = await vc.connect()
+                        voice_client = await vc.connect(cls=VoiceRecvClient)
                         print(f"[play_audio_in_voice] Connected to {vc.name}")
                     else:
                         print(f"[play_audio_in_voice] Already connected to {vc.name}")
@@ -30,8 +33,7 @@ async def play_audio_in_voice(client, filename, delay=1):
                 except Exception as e:
                     print(f"[play_audio_in_voice] Error playing {filename}: {e}")
                 return
-import discord
-import os
+
 async def play_gambling_audio(client):
     """Play Gambling.wav in the first voice channel with a non-bot user."""
     await play_audio_in_voice(client, "Gambling.mp3", delay=1)
