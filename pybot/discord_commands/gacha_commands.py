@@ -3,8 +3,8 @@ import json
 import random
 import os
 
-POINTS_FILE = "points_data.json"
-DATA_FILE = "gacha_inventory.json"
+POINTS_FILE = os.path.join("pybot", "points_data.json")
+DATA_FILE = os.path.join("pybot", "gacha_inventory.json")
 UNIT_POOL = [
     # Example units, you can expand this list
     {"name": "Slime", "stars": 1},
