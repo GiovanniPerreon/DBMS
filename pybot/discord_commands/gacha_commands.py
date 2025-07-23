@@ -6,13 +6,48 @@ import os
 POINTS_FILE = os.path.join(os.path.dirname(__file__), "points_data.json")
 DATA_FILE = os.path.join(os.path.dirname(__file__), "gacha_inventory.json")
 UNIT_POOL = [
-    # Example units, you can expand this list
-    {"name": "Slime", "stars": 1},
-    {"name": "Goblin", "stars": 2},
-    {"name": "Knight", "stars": 3},
-    {"name": "Mage", "stars": 4},
-    {"name": "Dragon", "stars": 5},
-    {"name": "Legendary Hero", "stars": 6},
+    {
+        "name": "Slime",
+        "stars": 1,
+        "image": "images/Slime.png",
+        "stats": {"HP": 50, "ATK": 10, "DEF": 5},
+        "ability": "Sticky Body: Double Defence."
+    },
+    {
+        "name": "Goblin",
+        "stars": 2,
+        "image": "images/Goblin.png",
+        "stats": {"HP": 80, "ATK": 20, "DEF": 10},
+        "ability": "Sneak Attack: Deals double damage on first hit."
+    },
+    {
+        "name": "Knight",
+        "stars": 3,
+        "image": "images/Knight.png",
+        "stats": {"HP": 120, "ATK": 35, "DEF": 25},
+        "ability": "Shield Wall: Reduces incoming damage by 10."
+    },
+    {
+        "name": "Mage",
+        "stars": 4,
+        "image": "images/Mage.png",
+        "stats": {"HP": 90, "ATK": 50, "DEF": 10},
+        "ability": "Arcane Blast: Ignores 50% of enemy DEF."
+    },
+    {
+        "name": "Dragon",
+        "stars": 5,
+        "image": "images/Dragon.png",
+        "stats": {"HP": 200, "ATK": 80, "DEF": 40},
+        "ability": "Inferno: Deals 30 splash damage to all enemies at the end of the turn."
+    },
+    {
+        "name": "Michael Saves",
+        "stars": 6,
+        "image": "images/Michael_Saves.png",
+        "stats": {"HP": 250, "ATK": 100, "DEF": 60},
+        "ability": "America supports Michael Saves: Increases ATK by 20%." 
+    },
 ]
 STAR_RATES = [
     (1, 0.35),  # 35% chance for 1-star
@@ -158,5 +193,25 @@ def register_gacha_commands(client, GUILD_ID):
             unit_counts[key] = unit_counts.get(key, 0) + 1
         lines = [f"{name} ({stars}⭐) x{count}" for (name, stars), count in sorted(unit_counts.items(), key=lambda x: (-x[0][1], x[0][0]))]
         await interaction.response.send_message("Your units:\n" + "\n".join(lines), ephemeral=True)
+
+    @client.tree.command(name="unitinfo", description="Check info for a unit by name", guild=GUILD_ID)
+    async def unitinfo(interaction: discord.Interaction, name: str):
+        # Case-insensitive search for unit name
+        unit = next((u for u in UNIT_POOL if u["name"].lower() == name.lower()), None)
+        if not unit:
+            await interaction.response.send_message(f"❌ No unit found with name '{name}'.", ephemeral=True)
+            return
+        embed = discord.Embed(title=f"{unit['name']} ({unit['stars']}⭐)", color=discord.Color.blue())
+        embed.set_image(url=f"attachment://{os.path.basename(unit['image'])}") if os.path.exists(unit['image']) else None
+        stats = unit["stats"]
+        stats_str = "\n".join([f"**{k}:** {v}" for k, v in stats.items()])
+        embed.add_field(name="Stats", value=stats_str, inline=False)
+        embed.add_field(name="Ability", value=unit["ability"], inline=False)
+        # If image exists, send as file
+        if os.path.exists(unit['image']):
+            file = discord.File(unit['image'], filename=os.path.basename(unit['image']))
+            await interaction.response.send_message(embed=embed, file=file, ephemeral=True)
+        else:
+            await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # To use: import and call register_gacha_commands(client, user_points) from your main bot setup
