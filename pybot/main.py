@@ -46,7 +46,7 @@ class STTFileHandler(FileSystemEventHandler):
                         from audio_actions import play_mito_in_voice
                         loop = getattr(self.client, 'loop', None)
                         if loop and loop.is_running():
-                            future = asyncio.run_coroutine_threadsafe(
+                            future = asyncio.run_coroutine_threadsafe(  
                                 play_mito_in_voice(self.client), loop)
                         else:   
                             print("Discord event loop not running, cannot play song.")
@@ -54,10 +54,7 @@ class STTFileHandler(FileSystemEventHandler):
             except Exception as e:
                 print(f"Error reading stt_result.txt: {e}")
 
-# --- Play song in voice channel ---
 import asyncio
-# async def play_song_in_voice(client, song_filename):
-#     pass  # Logic moved to play_mito command
 
 def main():
     """Main function to start the bot and keep-alive server"""
