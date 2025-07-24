@@ -8,7 +8,6 @@ from discord.ui import View, Button
 
 from .gacha_commands import UNIT_POOL
 
-
 # --- Boss System Integration ---
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 BOSS_FILE = os.path.join(DATA_DIR, "boss_data.json")
@@ -29,6 +28,7 @@ def load_boss():
         "max_hp": boss_unit["stats"]["HP"],
         "current_hp": boss_unit["stats"]["HP"],
         "image": boss_unit.get("image"),
+        "ability": boss_unit.get("ability", ""),
         "damage_log": [],
         "defeated": False
     }
