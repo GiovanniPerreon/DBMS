@@ -1,0 +1,1 @@
+{"name": "Goblin", "stars": 2, "stats": {"HP": 800, "ATK": 200, "DEF": 100}, "max_hp": 800, "current_hp": 800, "image": "images/Goblin.png", "ability": "Sneak Attack: Deals double damage on first hit.", "damage_log": [], "defeated": false}
