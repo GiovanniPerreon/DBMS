@@ -47,7 +47,7 @@ UNIT_POOL = [
         "stars": 6,
         "image": "images/Michael_Saves.png",
         "stats": {"HP": 250, "ATK": 100, "DEF": 60},
-        "ability": "America supports Michael Saves: Increases ATK by 20%." 
+        "ability": "America supports Michael Saves: Increases Post Mitigation Damage by 20%." 
     },
 ]
 STAR_RATES = [
@@ -222,5 +222,3 @@ def register_gacha_commands(client, GUILD_ID):
             await interaction.response.send_message(embed=embed, file=file, ephemeral=True)
         else:
             await interaction.response.send_message(embed=embed, ephemeral=True)
-
-# To use: import and call register_gacha_commands(client, user_points) from your main bot setup
