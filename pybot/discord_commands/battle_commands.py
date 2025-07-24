@@ -413,12 +413,12 @@ def register_battle_commands(client, GUILD_ID):
         save_active_units(active_units)
         await interaction.response.send_message(f"✅ Set your active unit to {chosen['name']} ({chosen['stars']}⭐)", ephemeral=True)
 
-    @client.tree.command(name="fight", description="Fight another player or the bot! (Boss fight if 'bot')", guild=GUILD_ID)
-    @app_commands.describe(opponent="@mention a user or type 'bot' to fight the AI/Boss")
+    @client.tree.command(name="fight", description="Fight another player or the bot! (Boss fight if 'boss')", guild=GUILD_ID)
+    @app_commands.describe(opponent="@mention a user or type 'boss' to fight the AI/Boss")
     async def fight(interaction: discord.Interaction, opponent: str):
         user_id = str(interaction.user.id)
-        if opponent.lower() == 'bot':
-            opp_id = 'bot'
+        if opponent.lower() == 'boss':
+            opp_id = 'boss'
             boss = load_boss()
             if boss["defeated"]:
                 await interaction.response.send_message("The boss has already been defeated! Wait for a new one.", ephemeral=True)
@@ -435,7 +435,7 @@ def register_battle_commands(client, GUILD_ID):
             elif opponent.isdigit():
                 opp_id = opponent
             else:
-                await interaction.response.send_message("Please mention a user or type 'bot'!", ephemeral=True)
+                await interaction.response.send_message("Please mention a user or type 'boss'!", ephemeral=True)
                 return
             opp_unit_data = await get_user_unit(opp_id)
             is_bot = False
@@ -446,7 +446,7 @@ def register_battle_commands(client, GUILD_ID):
         unit1 = BattleUnit(user_unit_data)
         unit2 = BattleUnit(opp_unit_data)
         # If boss fight, set boss HP to persistent value
-        if is_bot and opponent.lower() == 'bot':
+        if is_bot and opponent.lower() == 'boss':
             unit2.current_hp = boss["current_hp"]
             unit2.max_hp = boss["max_hp"]
         battle = Battle(unit1, unit2)
@@ -489,7 +489,7 @@ def register_battle_commands(client, GUILD_ID):
         )
 
         # After the battle, update boss HP and handle defeat if boss fight
-        if is_bot and opponent.lower() == 'bot':
+        if is_bot and opponent.lower() == 'boss':
             # Wait for the battle to finish (handled by UI/buttons)
             # This logic should be triggered after the battle ends, e.g. in AttackButton or similar
             # You may want to move boss HP update logic to where the winner is determined
