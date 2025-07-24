@@ -4,7 +4,7 @@ import os
 import json
 import asyncio
 from discord import app_commands
-from discord.ui import View, Button
+from discord.ui import View, Button, Select
 
 from .gacha_commands import UNIT_POOL
 
@@ -38,7 +38,10 @@ def load_boss():
         "image": boss_unit.get("image"),
         "ability": boss_unit.get("ability", ""),
         "damage_log": [],
-        "defeated": False
+        "defeated": False,
+        # Preserve spell data for boss
+        "spell": boss_unit.get("spell"),
+        "spells": boss_unit.get("spells")
     }
     with open(BOSS_FILE, "w") as f:
         json.dump(boss, f)
@@ -52,6 +55,81 @@ def save_boss(boss):
 
 # --- Battle System Core ---
 class BattleUnit:
+    def use_spell(self, battle, spell_idx=0):
+        # Only allow one spell per turn
+        if getattr(self, 'spell_used_this_turn', False):
+            battle.log.append(f"{self.name} already cast a spell this turn!")
+            return 0
+        spells = getattr(self, 'spells', [])
+        if not spells or spell_idx >= len(spells):
+            battle.log.append(f"{self.name} tried to cast a spell, but has none!")
+            return 0
+        spell = spells[spell_idx]
+        spell_name = spell.split(":")[0].strip().lower()
+        # Heal: Restore 30% HP
+        if "heal" in spell_name:
+            heal_amount = int(self.max_hp * 0.3)
+            before = self.current_hp
+            self.current_hp = min(self.current_hp + heal_amount, self.max_hp)
+            actual_heal = self.current_hp - before
+            battle.log.append(f"{self.name} casts Heal and restores {actual_heal} HP! ({self.current_hp}/{self.max_hp} HP)")
+            self.spell_used_this_turn = True
+            return actual_heal
+        # Fire Breath: Deal ATK - DEF damage to enemy
+        elif "fire breath" in spell_name:
+            # Target is always the other unit
+            target = battle.units[1] if battle.units[0] == self else battle.units[0]
+            damage = max(0, self.stats['ATK'] - target.stats['DEF'])
+            target.current_hp -= damage
+            battle.log.append(f"{self.name} uses Fire Breath! Deals {damage} damage to {target.name}. ({target.current_hp}/{target.max_hp} HP left)")
+            self.spell_used_this_turn = True
+            return damage
+        # Power Surge: Double attack for 1 turn
+        elif "power surge" in spell_name:
+            self._power_surge_active = True
+            battle.log.append(f"{self.name} casts Power Surge! Their next attack will deal double damage!")
+            self.spell_used_this_turn = True
+            return 1
+        # Michael Saves: Stat Boost spell
+        elif "stat boost" in spell_name or (self.name.lower() == "michael saves" and "boost" in spell_name):
+            # Permanently increase all stats by 10
+            for stat in self.stats:
+                self.stats[stat] += 10
+            self.max_hp = self.stats['HP']
+            # If current HP was at max, keep it at new max
+            if self.current_hp == self.max_hp - 10:
+                self.current_hp = self.max_hp
+            battle.log.append(f"{self.name} casts Stat Boost! All stats permanently increased by 10! (Now: ATK {self.stats['ATK']}, DEF {self.stats['DEF']}, HP {self.stats['HP']})")
+            # --- Make stat boost permanent in inventory or boss file ---
+            try:
+                # Only make stat boost permanent for player units (not boss)
+                # Player is always unit1 (index 0) in battle.units
+                if hasattr(battle, 'units') and self is battle.units[0]:
+                    from .gacha_commands import load_inventory, save_inventory
+                    # Find the user id by searching active_units.json
+                    import os, json
+                    ACTIVE_UNITS_FILE = os.path.join(os.path.dirname(__file__), "data/active_units.json")
+                    if os.path.exists(ACTIVE_UNITS_FILE):
+                        with open(ACTIVE_UNITS_FILE, "r") as f:
+                            active_units = json.load(f)
+                        # Find the user whose active unit matches this one
+                        for user_id, active in active_units.items():
+                            if active['name'] == self.name and active['stars'] == self.stars:
+                                inventory = load_inventory()
+                                user_units = inventory.get(user_id, [])
+                                for unit in user_units:
+                                    if unit['name'] == self.name and unit['stars'] == self.stars:
+                                        for stat in self.stats:
+                                            unit['stats'][stat] = self.stats[stat]
+                                        save_inventory(inventory)
+                                        break
+            except Exception as e:
+                battle.log.append(f"(Permanent stat boost failed to save: {e})")
+            self.spell_used_this_turn = True
+            return 1
+        else:
+            battle.log.append(f"{self.name} tried to cast {spell}, but nothing happened.")
+            return 0
 
     def __init__(self, unit_data):
         self.name = unit_data['name']
@@ -62,7 +140,17 @@ class BattleUnit:
         self.current_hp = self.max_hp
         self.passives = []  # List of passive functions
         self.image = unit_data.get('image')
-        # Register passives based on ability string (extendable)
+        
+        # Handle spell data properly
+        spell_data = unit_data.get('spell', unit_data.get('spells'))
+        if isinstance(spell_data, str):
+            self.spells = [spell_data]
+        elif isinstance(spell_data, list):
+            self.spells = spell_data
+        else:
+            self.spells = []
+            
+        # Register passives based on ability string
         self.register_passives()
 
     def register_passives(self):
@@ -151,6 +239,11 @@ class BattleUnit:
     def on_attack(self, target, battle):
         # Called when this unit attacks
         damage = max(0, self.stats['ATK'] - target.stats['DEF'])
+        # Power Surge: double damage for one turn if active
+        if hasattr(self, '_power_surge_active') and self._power_surge_active:
+            damage *= 2
+            battle.log.append(f"{self.name}'s Power Surge doubles their attack damage!")
+            self._power_surge_active = False
         # Apply passives that modify outgoing damage
         for passive in self.passives:
             damage = passive('on_attack', self, damage, battle)
@@ -164,23 +257,11 @@ class BattleUnit:
 
     def on_turn_start(self, battle):
         # Called at the start of this unit's turn
-        pass
+        self.spell_used_this_turn = False
 
     def on_turn_end(self, battle):
         # Called at the end of this unit's turn
         pass
-
-    # Example passive implementations
-    def sticky_body(self, trigger, attacker, damage, battle):
-        if trigger == 'on_defend':
-            # Double DEF for this attack
-            return max(0, damage - self.stats['DEF'])
-        return damage
-
-    def shield_wall(self, trigger, attacker, damage, battle):
-        if trigger == 'on_defend':
-            return max(0, damage - 10)
-        return damage
 
 
 class Battle:
@@ -210,11 +291,13 @@ class Battle:
         damage = attacker.on_attack(defender, self)
         # Second player shield logic: only applies to unit2 (index 1), only on first hit
         shield_broken = False
+        shield_absorbed = 0
         if (self.turn == 0 and not self.second_player_shield_used
                 and self.second_player_shield > 0):
             absorbed = min(damage, self.second_player_shield)
             damage -= absorbed
             self.second_player_shield -= absorbed
+            shield_absorbed = absorbed
             self.second_player_shield_used = True
             if absorbed > 0:
                 self.log.append(
@@ -226,9 +309,15 @@ class Battle:
         # Passives on defend
         damage = defender.on_defend(attacker, damage, self)
         defender.current_hp -= damage
-        self.log.append(
-            f"{attacker.name} attacks {defender.name} for {damage} damage! ({defender.current_hp}/{defender.max_hp} HP left)"
-        )
+        # Recap: show shield absorption if any
+        if shield_absorbed > 0:
+            self.log.append(
+                f"{attacker.name} attacks {defender.name} for {damage} damage! (🛡️ {shield_absorbed} absorbed, {defender.current_hp}/{defender.max_hp} HP left)"
+            )
+        else:
+            self.log.append(
+                f"{attacker.name} attacks {defender.name} for {damage} damage! ({defender.current_hp}/{defender.max_hp} HP left)"
+            )
         # End of turn passives
         attacker.on_turn_end(self)
         defender.on_turn_end(self)
@@ -304,6 +393,62 @@ BATTLES = {}
 
 
 class BattleView(View):
+    async def update_battle_embed(self, interaction):
+        battle = self.battle
+        log = '\n'.join(battle.log[-1:])
+        embed = discord.Embed(title="Battle Turn", description=log)
+        unit1 = battle.units[0]
+        unit2 = battle.units[1]
+        file1, url1 = self.get_unit_image_file(unit1)
+        file2, url2 = self.get_unit_image_file(unit2)
+        if url1:
+            embed.set_thumbnail(url=url1)
+        if url2:
+            embed.set_image(url=url2)
+        hp_bar1 = self.get_hp_bar(unit1.current_hp, unit1.max_hp)
+        hp_bar2 = self.get_hp_bar(unit2.current_hp, unit2.max_hp)
+        label1 = f"Your Unit: {unit1.name} HP"
+        label2 = f"Opponent Unit: {unit2.name} HP" if not self.is_bot else f"Bot Unit: {unit2.name} HP"
+        stats1 = f"ATK: {unit1.stats['ATK']}  DEF: {unit1.stats['DEF']}"
+        stats2 = f"ATK: {unit2.stats['ATK']}  DEF: {unit2.stats['DEF']}"
+        shield_val = getattr(battle, 'second_player_shield', 0)
+        shield_used = getattr(battle, 'second_player_shield_used', False)
+        if not shield_used and shield_val > 0:
+            shield_str = f"\n🛡️ Shield: {shield_val}"
+        else:
+            shield_str = ""
+        embed.add_field(name=label1, value=f"{unit1.current_hp}/{unit1.max_hp}\n{hp_bar1}\n{stats1}")
+        embed.add_field(name=label2, value=f"{unit2.current_hp}/{unit2.max_hp}\n{hp_bar2}\n{stats2}{shield_str}")
+        files = []
+        if file1:
+            files.append(file1)
+        if file2 and (not file1 or file2.filename != file1.filename):
+            files.append(file2)
+        # Show whose turn it is
+        if self.is_bot:
+            if battle.turn == 0:
+                embed.description += f"\nYour turn!"
+            else:
+                embed.description += f"\nBot is thinking..."
+        else:
+            turn_user = self.user_id if battle.turn == 0 else self.opponent_id
+            embed.description += f"\n<@{turn_user}>'s turn!"
+        await interaction.response.edit_message(embed=embed, attachments=files, view=self)
+    def get_hp_bar(self, current, maximum, length=16):
+        # Unicode block bar: ▰ = filled, ▱ = empty
+        if maximum <= 0:
+            maximum = 1
+        filled = int(length * max(0, current) / maximum)
+        empty = length - filled
+        return '▰' * filled + '▱' * empty
+
+    def get_unit_image_file(self, unit):
+        # Try to resolve image path for the unit
+        if hasattr(unit, 'image') and unit.image:
+            image_path = os.path.join(os.path.dirname(__file__), unit.image)
+            if os.path.exists(image_path):
+                return discord.File(image_path, filename=os.path.basename(image_path)), f"attachment://{os.path.basename(image_path)}"
+        return None, None
 
     def __init__(self,
                  battle,
@@ -316,35 +461,81 @@ class BattleView(View):
         self.user_id = user_id
         self.opponent_id = opponent_id
         self.is_bot = is_bot
-        self.add_item(AttackButton(self))
-        # Add more buttons for abilities, defend, etc.
+        
+        # Always add AttackButton if show_buttons is True (for the current player)
+        if show_buttons:
+            self.add_item(AttackButton(self))
+        
+        # Only add SpellButton if not a boss turn (i.e., not is_bot and it's the boss's turn)
+        current_unit = self.battle.units[self.battle.turn]
+        spells = getattr(current_unit, 'spells', [])
+        # In boss fights, only allow the player to use spells (not the boss)
+        if spells and len(spells) > 0:
+            if not (self.is_bot and self.battle.turn == 1):
+                self.add_item(SpellButton(self, spells))
 
-    async def interaction_check(self, interaction):
-        # Only allow the current turn's user to click
-        current_turn_user = self.user_id if self.battle.turn == 0 else self.opponent_id
+
+class SpellButton(Button):
+    def __init__(self, battle_view, spells):
+        self.battle_view = battle_view
+        self.spells = spells
+        if len(spells) == 1:
+            label = spells[0].split(":")[0].strip()
+        else:
+            label = "Spell"
+        super().__init__(label=label, style=discord.ButtonStyle.success, emoji="✨")
+
+    async def callback(self, interaction):
+        # Turn check logic
+        battle = self.battle_view.battle
+        current_turn_user = self.battle_view.user_id if battle.turn == 0 else self.battle_view.opponent_id
         if str(interaction.user.id) != str(current_turn_user):
-            await interaction.response.send_message("It's not your turn!",
-                                                    ephemeral=True)
-            return False
-        return True
+            await interaction.response.send_message("It's not your turn!", ephemeral=True)
+            return
+        unit = battle.units[battle.turn]
+        if getattr(unit, 'spell_used_this_turn', False):
+            await interaction.response.send_message("You already cast a spell this turn!", ephemeral=True)
+            return
+        if len(self.spells) == 1:
+            # Cast the only spell
+            await self.cast_spell(interaction, 0)
+        else:
+            # Show dropdown to pick spell
+            await interaction.response.send_message(
+                "Choose a spell to cast:",
+                view=SpellSelectView(self.battle_view, self.spells, self),
+                ephemeral=True
+            )
 
-    def get_unit_image_file(self, unit):
-        # Try to resolve image path for the unit
-        if hasattr(unit, 'image') and unit.image:
-            image_path = os.path.join(os.path.dirname(__file__), unit.image)
-            if os.path.exists(image_path):
-                return discord.File(
-                    image_path, filename=os.path.basename(image_path)
-                ), f"attachment://{os.path.basename(image_path)}"
-        return None, None
+    async def cast_spell(self, interaction, idx):
+        battle = self.battle_view.battle
+        unit = battle.units[battle.turn]
+        spell_name = self.spells[idx]
+        # Use the spell
+        if hasattr(unit, 'use_spell'):
+            unit.use_spell(battle, idx)
+        # Update the battle embed
+        await self.battle_view.update_battle_embed(interaction)
 
-    def get_hp_bar(self, current, maximum, length=16):
-        # Unicode block bar: ▰ = filled, ▱ = empty
-        if maximum <= 0:
-            maximum = 1
-        filled = int(length * max(0, current) / maximum)
-        empty = length - filled
-        return '▰' * filled + '▱' * empty
+
+class SpellSelectView(View):
+    def __init__(self, battle_view, spells, spell_button):
+        super().__init__(timeout=30)
+        self.battle_view = battle_view
+        self.spells = spells
+        self.spell_button = spell_button
+        self.add_item(SpellSelect(self, spells))
+
+
+class SpellSelect(Select):
+    def __init__(self, parent_view, spells):
+        options = [discord.SelectOption(label=spell, value=str(i)) for i, spell in enumerate(spells)]
+        super().__init__(placeholder="Choose a spell...", min_values=1, max_values=1, options=options)
+        self.parent_view = parent_view
+
+    async def callback(self, interaction):
+        idx = int(self.values[0])
+        await self.parent_view.spell_button.cast_spell(interaction, idx)
 
 
 class AttackButton(Button):
@@ -356,6 +547,12 @@ class AttackButton(Button):
         self.battle_view = battle_view
 
     async def callback(self, interaction):
+        # Turn check logic
+        battle = self.battle_view.battle
+        current_turn_user = self.battle_view.user_id if battle.turn == 0 else self.battle_view.opponent_id
+        if str(interaction.user.id) != str(current_turn_user):
+            await interaction.response.send_message("It's not your turn!", ephemeral=True)
+            return
         battle = self.battle_view.battle
         winner = battle.next_turn()
         log = '\n'.join(battle.log[-1:])
@@ -380,12 +577,9 @@ class AttackButton(Button):
         stats2 = f"ATK: {unit2.stats['ATK']}  DEF: {unit2.stats['DEF']}"
         shield_val = getattr(battle, 'second_player_shield', 0)
         shield_used = getattr(battle, 'second_player_shield_used', False)
-        # Always show the starting shield value if it was set (even if not used yet)
-        if shield_val > 0 and (not shield_used or
-                               (shield_used and shield_val > 0)):
+        # Only show shield on the first turn (before it is used)
+        if not shield_used and shield_val > 0:
             shield_str = f"\n🛡️ Shield: {shield_val}"
-        elif shield_used and shield_val <= 0:
-            shield_str = "\n🛡️ Shield Broken!"
         else:
             shield_str = ""
         embed.add_field(
@@ -468,11 +662,16 @@ class AttackButton(Button):
                     (interaction.channel_id, str(self.battle_view.user_id)),
                     None)
                 return
+
         # If bot, handle bot turn
         if self.battle_view.is_bot and battle.turn == 1:
             await interaction.response.edit_message(embed=embed,
                                                     attachments=files,
-                                                    view=None)
+                                                    view=BattleView(self.battle_view.battle,
+                                                                    self.battle_view.user_id,
+                                                                    self.battle_view.opponent_id,
+                                                                    is_bot=True,
+                                                                    show_buttons=False))
             await asyncio.sleep(1)
             winner = battle.next_turn()
             log2 = '\n'.join(battle.log[-1:])
@@ -518,7 +717,7 @@ class AttackButton(Button):
                     None)
                 return
             embed2.description += "\nYour turn!"
-            # Always reuse the same battle object for the view
+            # Always reuse the same battle object for the view, so spell button is correct
             await interaction.edit_original_response(
                 embed=embed2,
                 attachments=[f for f in [file1b, file2b] if f],
@@ -531,7 +730,7 @@ class AttackButton(Button):
             # PvP: Only show button to the player whose turn it is
             turn_user = self.battle_view.user_id if battle.turn == 0 else self.battle_view.opponent_id
             show_buttons = str(interaction.user.id) == str(turn_user)
-            # Always reuse the same battle object for the view
+            # Always reuse the same battle object for the view, so spell button is correct
             await interaction.response.edit_message(
                 embed=embed,
                 attachments=files,
@@ -540,6 +739,49 @@ class AttackButton(Button):
                                 self.battle_view.opponent_id,
                                 is_bot=self.battle_view.is_bot,
                                 show_buttons=show_buttons))
+
+    async def update_battle_embed(self, interaction):
+        battle = self.battle
+        log = '\n'.join(battle.log[-1:])
+        embed = discord.Embed(title="Battle Turn", description=log)
+        unit1 = battle.units[0]
+        unit2 = battle.units[1]
+        file1, url1 = self.get_unit_image_file(unit1)
+        file2, url2 = self.get_unit_image_file(unit2)
+        if url1:
+            embed.set_thumbnail(url=url1)
+        if url2:
+            embed.set_image(url=url2)
+        hp_bar1 = self.get_hp_bar(unit1.current_hp, unit1.max_hp)
+        hp_bar2 = self.get_hp_bar(unit2.current_hp, unit2.max_hp)
+        label1 = f"Your Unit: {unit1.name} HP"
+        label2 = f"Opponent Unit: {unit2.name} HP"
+        stats1 = f"ATK: {unit1.stats['ATK']}  DEF: {unit1.stats['DEF']}"
+        stats2 = f"ATK: {unit2.stats['ATK']}  DEF: {unit2.stats['DEF']}"
+        shield_val = getattr(battle, 'second_player_shield', 0)
+        shield_used = getattr(battle, 'second_player_shield_used', False)
+        if not shield_used and shield_val > 0:
+            shield_str = f"\n🛡️ Shield: {shield_val}"
+        else:
+            shield_str = ""
+        embed.add_field(name=label1, value=f"{unit1.current_hp}/{unit1.max_hp}\n{hp_bar1}\n{stats1}")
+        embed.add_field(name=label2, value=f"{unit2.current_hp}/{unit2.max_hp}\n{hp_bar2}\n{stats2}{shield_str}")
+        files = []
+        if file1:
+            files.append(file1)
+        if file2 and (not file1 or file2.filename != file1.filename):
+            files.append(file2)
+        await interaction.response.edit_message(embed=embed, attachments=files, view=self)
+
+    def get_unit_image_file(self, unit):
+        # Try to resolve image path for the unit
+        if hasattr(unit, 'image') and unit.image:
+            image_path = os.path.join(os.path.dirname(__file__), unit.image)
+            if os.path.exists(image_path):
+                return discord.File(
+                    image_path, filename=os.path.basename(image_path)
+                ), f"attachment://{os.path.basename(image_path)}"
+        return None, None
 
 
 def register_battle_commands(client, GUILD_ID):
@@ -639,11 +881,8 @@ def register_battle_commands(client, GUILD_ID):
         stats2 = f"ATK: {unit2.stats['ATK']}  DEF: {unit2.stats['DEF']}"
         shield_val = getattr(battle, 'second_player_shield', 0)
         shield_used = getattr(battle, 'second_player_shield_used', False)
-        if shield_val > 0 and (not shield_used or
-                               (shield_used and shield_val > 0)):
+        if not shield_used and shield_val > 0:
             shield_str = f"\n🛡️ Shield: {shield_val}"
-        elif shield_used and shield_val <= 0:
-            shield_str = "\n🛡️ Shield Broken!"
         else:
             shield_str = ""
         embed.add_field(
@@ -652,8 +891,7 @@ def register_battle_commands(client, GUILD_ID):
         embed.add_field(
             name=label2,
             value=
-            f"{unit2.current_hp}/{unit2.max_hp}\n{hp_bar2}\n{stats2}{shield_str}"
-        )
+            f"{unit2.current_hp}/{unit2.max_hp}\n{hp_bar2}\n{stats2}{shield_str}")
         files = []
         if file1:
             files.append(file1)

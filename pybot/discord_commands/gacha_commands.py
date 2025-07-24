@@ -13,7 +13,8 @@ UNIT_POOL = [
         "stars": 1,
         "image": "images/Slime.png",
         "stats": {"HP": 50, "ATK": 10, "DEF": 5},
-        "ability": "Sticky Body: Double Defence."
+        "ability": "Sticky Body: Double Defence.",
+        "spell": "Heal: Restore 30% HP"
     },
     {
         "name": "Goblin",
@@ -27,28 +28,36 @@ UNIT_POOL = [
         "stars": 3,
         "image": "images/Knight.png",
         "stats": {"HP": 120, "ATK": 35, "DEF": 25},
-        "ability": "Shield Wall: Reduces incoming damage by 10."
+        "ability": "Shield Wall: Reduces incoming damage by 10.",
+        "spell": "Power Surge: Double attack for 1 turn"
     },
     {
         "name": "Mage",
         "stars": 4,
         "image": "images/Mage.png",
         "stats": {"HP": 90, "ATK": 50, "DEF": 10},
-        "ability": "Arcane Blast: Ignores 50% of enemy DEF."
+        "ability": "Arcane Blast: Ignores 50% of enemy DEF.",
+        "spell": "Heal: Restore 30% HP"
     },
     {
         "name": "Dragon",
         "stars": 5,
         "image": "images/Dragon.png",
         "stats": {"HP": 200, "ATK": 80, "DEF": 40},
-        "ability": "Inferno: Deals 30 splash damage to all enemies at the end of the turn."
+        "ability": "Inferno: Deals 30 splash damage to all enemies at the end of the turn.",
+        "spell": "Fire Breath: Deal damage equal to ATK (reduced by enemy DEF)"
     },
     {
         "name": "Michael Saves",
         "stars": 6,
         "image": "images/Michael_Saves.png",
         "stats": {"HP": 250, "ATK": 100, "DEF": 60},
-        "ability": "America supports Michael Saves: Double Post Mitigation Damage.; Sticky Body: Double Defence."
+        "ability": "America supports Michael Saves: Double Post Mitigation Damage.; Sticky Body: Double Defence.",
+        "spell": [
+            "Heal: Restore 30% HP",
+            "Power Surge: Double attack for 1 turn",
+            "Stat Boost: Permanently increase all stats by 10"
+        ]
     },
 ]
 STAR_RATES = [
@@ -348,13 +357,21 @@ def register_gacha_commands(client, GUILD_ID):
             return
         embed = discord.Embed(title=f"{unit['name']} ({unit['stars']}⭐)", color=discord.Color.blue())
         image_path = get_unit_image_path(unit)
-        
+
         if os.path.exists(image_path):
             embed.set_image(url=f"attachment://{os.path.basename(image_path)}")
         stats = unit["stats"]
         stats_str = "\n".join([f"**{k}:** {v}" for k, v in stats.items()])
         embed.add_field(name="Stats", value=stats_str, inline=False)
         embed.add_field(name="Ability", value=unit["ability"], inline=False)
+        # Add Spells field if present
+        spell_field = unit.get("spell")
+        if spell_field:
+            if isinstance(spell_field, list):
+                spells_str = "\n".join(spell_field)
+            else:
+                spells_str = spell_field
+            embed.add_field(name="Spells", value=spells_str, inline=False)
         # If image exists, send as file
         if os.path.exists(image_path):
             file = discord.File(image_path, filename=os.path.basename(image_path))

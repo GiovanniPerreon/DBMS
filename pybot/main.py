@@ -5,12 +5,8 @@ import os
 import threading
 from keep_alive import keep_alive
 from commands import setup_commands
-# Watchdog for file events
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-
-    # Removed custom Client class. Use VoiceRecvClient directly.
-
 
 # --- Watchdog event handler ---
 class STTFileHandler(FileSystemEventHandler):
