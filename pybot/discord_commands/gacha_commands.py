@@ -48,7 +48,7 @@ UNIT_POOL = [
         "stars": 6,
         "image": "images/Michael_Saves.png",
         "stats": {"HP": 250, "ATK": 100, "DEF": 60},
-        "ability": "America supports Michael Saves: Double Post Mitigation Damage." 
+        "ability": "America supports Michael Saves: Double Post Mitigation Damage.; Sticky Body: Double Defence."
     },
 ]
 STAR_RATES = [
@@ -102,7 +102,26 @@ def get_unit_image_path(unit):
     # Returns absolute path for unit image, using same logic as DATA_FILE
     path = os.path.join(os.path.dirname(__file__), unit['image'])
     return path
-
+def sync_unit_metadata_to_inventory():
+    inventory = load_inventory()
+    updated = False
+    # Build a lookup for UNIT_POOL by (name, stars)
+    pool_lookup = {(u["name"], u["stars"]): u for u in UNIT_POOL}
+    for user_id, units in inventory.items():
+        for unit in units:
+            key = (unit.get("name"), unit.get("stars"))
+            pool_unit = pool_lookup.get(key)
+            if pool_unit:
+                # Sync all non-stat fields (skip 'stats')
+                for field in pool_unit:
+                    if field != "stats" and unit.get(field) != pool_unit[field]:
+                        unit[field] = pool_unit[field]
+                        updated = True
+    if updated:
+        save_inventory(inventory)
+        print("Synced all non-stat fields from UNIT_POOL to inventory units.")
+    else:
+        print("No inventory units needed updating.")
 # Register gacha commands
 
 def register_gacha_commands(client, GUILD_ID):
@@ -163,6 +182,8 @@ def register_gacha_commands(client, GUILD_ID):
         )
     @client.tree.command(name="all_inventories", description="Show all users' summoned units", guild=GUILD_ID)
     async def all_inventories(interaction: discord.Interaction):
+        # Sync all non-stat fields before displaying inventories
+        sync_unit_metadata_to_inventory()
         inventory = load_inventory()
         if not inventory:
             await interaction.response.send_message("No inventories found!", ephemeral=True)
