@@ -1,1 +1,1 @@
-{"name": "Goblin", "stars": 2, "stats": {"HP": 800, "ATK": 200, "DEF": 100}, "max_hp": 800, "current_hp": 800, "image": "images/Goblin.png", "ability": "Sneak Attack: Deals double damage on first hit.", "damage_log": [], "defeated": false}
+{"name": "Dragon", "stars": 5, "stats": {"HP": 2000, "ATK": 800, "DEF": 400}, "max_hp": 2000, "current_hp": 2000, "image": "images/Dragon.png", "ability": "Inferno: Deals 30 splash damage to all enemies at the end of the turn.", "damage_log": [], "defeated": false}
