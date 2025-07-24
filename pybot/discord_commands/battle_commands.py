@@ -854,6 +854,14 @@ def register_battle_commands(client, GUILD_ID):
         if is_bot and opponent.lower() == 'boss':
             unit2.current_hp = boss["current_hp"]
             unit2.max_hp = boss["max_hp"]
+            # Play Curse_you_Bayle.mp3 if the boss is Dragon
+            if boss["name"].lower() == "dragon":
+                try:
+                    from audio_actions import play_curse_you_bayle_audio
+                    import asyncio
+                    asyncio.create_task(play_curse_you_bayle_audio(interaction.client))
+                except Exception as e:
+                    print(f"[fight] Error playing Curse_you_Bayle.mp3: {e}")
         battle = Battle(unit1, unit2)
         # Store battle state
         BATTLES[(interaction.channel_id, user_id)] = battle

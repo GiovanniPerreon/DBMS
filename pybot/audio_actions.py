@@ -44,3 +44,21 @@ async def play_mito_in_voice(client):
 async def play_dang_it_audio(client):
     """Play dang_it.wav in the first voice channel with a non-bot user."""
     await play_audio_in_voice(client, "dang_it.mp3", delay=1)
+
+# --- Stop audio playback in all voice channels ---
+async def stop_audio_in_voice(client):
+    """Stop audio playback and disconnect from all voice channels for this client."""
+    for voice_client in list(client.voice_clients):
+        try:
+            if voice_client.is_playing():
+                voice_client.stop()
+                print(f"[stop_audio_in_voice] Stopped audio in {voice_client.channel.name}")
+            await voice_client.disconnect(force=True)
+            print(f"[stop_audio_in_voice] Disconnected from {voice_client.channel.name}")
+        except Exception as e:
+            print(f"[stop_audio_in_voice] Error stopping/disconnecting: {e}")
+
+# --- Play Curse_you_Bayle.mp3 in a voice channel ---
+async def play_curse_you_bayle_audio(client):
+    """Play Curse_you_Bayle.mp3 in the first voice channel with a non-bot user."""
+    await play_audio_in_voice(client, "Curse_you_Bayle.mp3", delay=1)
