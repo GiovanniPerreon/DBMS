@@ -1,1 +1,1 @@
-{"name": "Knight", "stars": 3, "stats": {"HP": 1200, "ATK": 350, "DEF": 250}, "max_hp": 1200, "current_hp": 1200, "image": "images/Knight.png", "ability": "Shield Wall: Reduces incoming damage by 10.", "damage_log": [], "defeated": false}
+{"name": "Michael Saves", "stars": 6, "stats": {"HP": 2500, "ATK": 1000, "DEF": 600}, "max_hp": 2500, "current_hp": 2470, "image": "images/Michael_Saves.png", "ability": "America supports Michael Saves: Double Post Mitigation Damage.", "damage_log": [], "defeated": false}
