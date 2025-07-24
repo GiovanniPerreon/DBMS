@@ -433,12 +433,14 @@ class AttackButton(Button):
                 BATTLES.pop((interaction.channel_id, str(self.battle_view.user_id)), None)
                 return
             embed2.description += "\nYour turn!"
-            await interaction.edit_original_response(embed=embed2, attachments=[f for f in [file1b, file2b] if f], view=BattleView(battle, self.battle_view.user_id, self.battle_view.opponent_id, is_bot=True, show_buttons=True))
+            # Always reuse the same battle object for the view
+            await interaction.edit_original_response(embed=embed2, attachments=[f for f in [file1b, file2b] if f], view=BattleView(self.battle_view.battle, self.battle_view.user_id, self.battle_view.opponent_id, is_bot=True, show_buttons=True))
         else:
             # PvP: Only show button to the player whose turn it is
             turn_user = self.battle_view.user_id if battle.turn == 0 else self.battle_view.opponent_id
             show_buttons = str(interaction.user.id) == str(turn_user)
-            await interaction.response.edit_message(embed=embed, attachments=files, view=BattleView(battle, self.battle_view.user_id, self.battle_view.opponent_id, is_bot=self.battle_view.is_bot, show_buttons=show_buttons))
+            # Always reuse the same battle object for the view
+            await interaction.response.edit_message(embed=embed, attachments=files, view=BattleView(self.battle_view.battle, self.battle_view.user_id, self.battle_view.opponent_id, is_bot=self.battle_view.is_bot, show_buttons=show_buttons))
 
 def register_battle_commands(client, GUILD_ID):
     @client.tree.command(name="set_active_unit", description="Set your active unit for battle", guild=GUILD_ID)
