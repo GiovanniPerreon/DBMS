@@ -131,6 +131,14 @@ class Battle:
         self.units = [unit1, unit2]
         self.turn = 0  # 0 or 1
         self.log = []
+        # Second player shield: scales with ATK, DEF, HP
+        atk = unit2.stats.get('ATK', 0)
+        defense = unit2.stats.get('DEF', 0)
+        hp = unit2.stats.get('HP', 0)
+        shield_val = int(0.2 * (atk + defense) + 0.1 * hp)
+        self.second_player_shield = shield_val
+        self.second_player_shield_used = False
+        self.log.append(f"Second Player Shield: {unit2.name} receives a shield that absorbs the first {shield_val} damage!")
 
     def next_turn(self):
         attacker = self.units[self.turn]
@@ -140,6 +148,18 @@ class Battle:
         defender.on_turn_start(self)
         # Attack phase
         damage = attacker.on_attack(defender, self)
+        # Second player shield logic: only applies to unit2 (index 1), only on first hit
+        shield_broken = False
+        if (self.turn == 0 and not self.second_player_shield_used and self.second_player_shield > 0):
+            absorbed = min(damage, self.second_player_shield)
+            damage -= absorbed
+            self.second_player_shield -= absorbed
+            self.second_player_shield_used = True
+            if absorbed > 0:
+                self.log.append(f"Second Player Shield absorbs {absorbed} damage from the first attack!")
+            if self.second_player_shield <= 0:
+                shield_broken = True
+                self.log.append(f"Second Player Shield is broken!")
         # Passives on defend
         damage = defender.on_defend(attacker, damage, self)
         defender.current_hp -= damage
@@ -269,8 +289,17 @@ class AttackButton(Button):
         # Add stats to the HP fields
         stats1 = f"ATK: {unit1.stats['ATK']}  DEF: {unit1.stats['DEF']}"
         stats2 = f"ATK: {unit2.stats['ATK']}  DEF: {unit2.stats['DEF']}"
+        shield_val = getattr(battle, 'second_player_shield', 0)
+        shield_used = getattr(battle, 'second_player_shield_used', False)
+        # Always show the starting shield value if it was set (even if not used yet)
+        if shield_val > 0 and (not shield_used or (shield_used and shield_val > 0)):
+            shield_str = f"\n🛡️ Shield: {shield_val}"
+        elif shield_used and shield_val <= 0:
+            shield_str = "\n🛡️ Shield Broken!"
+        else:
+            shield_str = ""
         embed.add_field(name=label1, value=f"{unit1.current_hp}/{unit1.max_hp}\n{hp_bar1}\n{stats1}")
-        embed.add_field(name=label2, value=f"{unit2.current_hp}/{unit2.max_hp}\n{hp_bar2}\n{stats2}")
+        embed.add_field(name=label2, value=f"{unit2.current_hp}/{unit2.max_hp}\n{hp_bar2}\n{stats2}{shield_str}")
         # Show whose turn it is
         if self.battle_view.is_bot:
             if battle.turn == 0:
@@ -378,10 +407,38 @@ def register_battle_commands(client, GUILD_ID):
         battle = Battle(unit1, unit2)
         # Store battle state
         BATTLES[(interaction.channel_id, user_id)] = battle
-        # First turn: user
-        # Always send a public message in the channel, only the correct player can interact
+        # Prepare the initial battle embed (same as AttackButton logic)
+        embed = discord.Embed(title="Battle Start!", description='\n'.join(battle.log[-1:]) + f"\n<@{user_id}>'s turn!")
+        file1, url1 = BattleView(battle, user_id, opp_id, is_bot=is_bot).get_unit_image_file(unit1)
+        file2, url2 = BattleView(battle, user_id, opp_id, is_bot=is_bot).get_unit_image_file(unit2)
+        if url1:
+            embed.set_thumbnail(url=url1)
+        if url2:
+            embed.set_image(url=url2)
+        hp_bar1 = BattleView(battle, user_id, opp_id, is_bot=is_bot).get_hp_bar(unit1.current_hp, unit1.max_hp)
+        hp_bar2 = BattleView(battle, user_id, opp_id, is_bot=is_bot).get_hp_bar(unit2.current_hp, unit2.max_hp)
+        label1 = f"Your Unit: {unit1.name} HP"
+        label2 = f"Bot Unit: {unit2.name} HP" if is_bot else f"Opponent Unit: {unit2.name} HP"
+        stats1 = f"ATK: {unit1.stats['ATK']}  DEF: {unit1.stats['DEF']}"
+        stats2 = f"ATK: {unit2.stats['ATK']}  DEF: {unit2.stats['DEF']}"
+        shield_val = getattr(battle, 'second_player_shield', 0)
+        shield_used = getattr(battle, 'second_player_shield_used', False)
+        if shield_val > 0 and (not shield_used or (shield_used and shield_val > 0)):
+            shield_str = f"\n🛡️ Shield: {shield_val}"
+        elif shield_used and shield_val <= 0:
+            shield_str = "\n🛡️ Shield Broken!"
+        else:
+            shield_str = ""
+        embed.add_field(name=label1, value=f"{unit1.current_hp}/{unit1.max_hp}\n{hp_bar1}\n{stats1}")
+        embed.add_field(name=label2, value=f"{unit2.current_hp}/{unit2.max_hp}\n{hp_bar2}\n{stats2}{shield_str}")
+        files = []
+        if file1:
+            files.append(file1)
+        if file2 and (not file1 or file2.filename != file1.filename):
+            files.append(file2)
         await interaction.response.send_message(
-            f"**Battle Start!**\n<@{user_id}>'s turn!",
+            embed=embed,
+            files=files,
             view=BattleView(battle, user_id, opp_id, is_bot=is_bot, show_buttons=True),
             ephemeral=False
         )
