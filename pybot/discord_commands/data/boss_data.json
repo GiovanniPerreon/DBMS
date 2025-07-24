@@ -1,1 +1,1 @@
-{"name": "Michael Saves", "stars": 6, "stats": {"HP": 2500, "ATK": 1000, "DEF": 600}, "max_hp": 2500, "current_hp": 2470, "image": "images/Michael_Saves.png", "ability": "America supports Michael Saves: Double Post Mitigation Damage.", "damage_log": [], "defeated": false}
+{"name": "Goblin", "stars": 2, "stats": {"HP": 800, "ATK": 200, "DEF": 100}, "max_hp": 800, "current_hp": 800, "image": "images/Goblin.png", "ability": "Sneak Attack: Deals double damage on first hit.", "damage_log": [], "defeated": false}

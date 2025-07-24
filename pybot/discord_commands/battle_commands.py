@@ -12,6 +12,7 @@ from .gacha_commands import UNIT_POOL
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 BOSS_FILE = os.path.join(DATA_DIR, "boss_data.json")
 
+
 def load_boss():
     if os.path.exists(BOSS_FILE):
         with open(BOSS_FILE, "r") as f:
@@ -43,12 +44,15 @@ def load_boss():
         json.dump(boss, f)
     return boss
 
+
 def save_boss(boss):
     with open(BOSS_FILE, "w") as f:
         json.dump(boss, f)
 
+
 # --- Battle System Core ---
 class BattleUnit:
+
     def __init__(self, unit_data):
         self.name = unit_data['name']
         self.stars = unit_data['stars']
@@ -80,14 +84,18 @@ class BattleUnit:
     def sticky_body(self, trigger, attacker, damage, battle):
         if trigger == 'on_defend':
             reduced = max(0, damage - self.stats['DEF'])
-            battle.log.append(f"{self.name}'s Sticky Body activates! DEF doubled, damage reduced to {reduced}.")
+            battle.log.append(
+                f"{self.name}'s Sticky Body activates! DEF doubled, damage reduced to {reduced}."
+            )
             return reduced
         return damage
 
     def shield_wall(self, trigger, attacker, damage, battle):
         if trigger == 'on_defend':
             reduced = max(0, damage - 10)
-            battle.log.append(f"{self.name}'s Shield Wall activates! Damage reduced by 10 to {reduced}.")
+            battle.log.append(
+                f"{self.name}'s Shield Wall activates! Damage reduced by 10 to {reduced}."
+            )
             return reduced
         return damage
 
@@ -97,7 +105,9 @@ class BattleUnit:
             if not hasattr(self, '_sneak_attack_used'):
                 self._sneak_attack_used = True
                 doubled = damage * 2
-                battle.log.append(f"{self.name}'s Sneak Attack! First hit deals double damage: {doubled}.")
+                battle.log.append(
+                    f"{self.name}'s Sneak Attack! First hit deals double damage: {doubled}."
+                )
                 return doubled
         return damage
 
@@ -109,7 +119,9 @@ class BattleUnit:
                 orig_def = defender.stats['DEF']
                 reduced_def = orig_def * 0.5
                 base_damage = max(0, attacker.stats['ATK'] - reduced_def)
-                battle.log.append(f"{self.name}'s Arcane Blast! Ignores 50% DEF, damage is {base_damage}.")
+                battle.log.append(
+                    f"{self.name}'s Arcane Blast! Ignores 50% DEF, damage is {base_damage}."
+                )
                 return base_damage
         return damage
 
@@ -121,14 +133,18 @@ class BattleUnit:
                 for unit in battle.units:
                     if unit is not self:
                         unit.current_hp -= 30
-                        battle.log.append(f"{self.name}'s Inferno triggers! Deals 30 splash damage to {unit.name}.")
+                        battle.log.append(
+                            f"{self.name}'s Inferno triggers! Deals 30 splash damage to {unit.name}."
+                        )
         return damage
 
     def america_supports(self, trigger, attacker, damage, battle):
         # Double post-mitigation damage
         if trigger == 'on_attack':
             boosted = int(damage * 2)
-            battle.log.append(f"{self.name}'s America supports Michael Saves! Post-mitigation damage DOUBLED: {damage} → {boosted}.")
+            battle.log.append(
+                f"{self.name}'s America supports Michael Saves! Post-mitigation damage DOUBLED: {damage} → {boosted}."
+            )
             return boosted
         return damage
 
@@ -166,7 +182,9 @@ class BattleUnit:
             return max(0, damage - 10)
         return damage
 
+
 class Battle:
+
     def __init__(self, unit1, unit2):
         self.units = [unit1, unit2]
         self.turn = 0  # 0 or 1
@@ -178,7 +196,9 @@ class Battle:
         shield_val = int(0.2 * (atk + defense) + 0.1 * hp)
         self.second_player_shield = shield_val
         self.second_player_shield_used = False
-        self.log.append(f"Second Player Shield: {unit2.name} receives a shield that absorbs the first {shield_val} damage!")
+        self.log.append(
+            f"Second Player Shield: {unit2.name} receives a shield that absorbs the first {shield_val} damage!"
+        )
 
     def next_turn(self):
         attacker = self.units[self.turn]
@@ -190,20 +210,25 @@ class Battle:
         damage = attacker.on_attack(defender, self)
         # Second player shield logic: only applies to unit2 (index 1), only on first hit
         shield_broken = False
-        if (self.turn == 0 and not self.second_player_shield_used and self.second_player_shield > 0):
+        if (self.turn == 0 and not self.second_player_shield_used
+                and self.second_player_shield > 0):
             absorbed = min(damage, self.second_player_shield)
             damage -= absorbed
             self.second_player_shield -= absorbed
             self.second_player_shield_used = True
             if absorbed > 0:
-                self.log.append(f"Second Player Shield absorbs {absorbed} damage from the first attack!")
+                self.log.append(
+                    f"Second Player Shield absorbs {absorbed} damage from the first attack!"
+                )
             if self.second_player_shield <= 0:
                 shield_broken = True
                 self.log.append(f"Second Player Shield is broken!")
         # Passives on defend
         damage = defender.on_defend(attacker, damage, self)
         defender.current_hp -= damage
-        self.log.append(f"{attacker.name} attacks {defender.name} for {damage} damage! ({defender.current_hp}/{defender.max_hp} HP left)")
+        self.log.append(
+            f"{attacker.name} attacks {defender.name} for {damage} damage! ({defender.current_hp}/{defender.max_hp} HP left)"
+        )
         # End of turn passives
         attacker.on_turn_end(self)
         defender.on_turn_end(self)
@@ -221,8 +246,12 @@ class Battle:
             return 0  # unit1 wins
         return None
 
-ACTIVE_UNITS_FILE = os.path.join(os.path.dirname(__file__), "data/active_units.json")
-INVENTORY_FILE = os.path.join(os.path.dirname(__file__), "data/gacha_inventory.json")
+
+ACTIVE_UNITS_FILE = os.path.join(os.path.dirname(__file__),
+                                 "data/active_units.json")
+INVENTORY_FILE = os.path.join(os.path.dirname(__file__),
+                              "data/gacha_inventory.json")
+
 
 def load_active_units():
     if os.path.exists(ACTIVE_UNITS_FILE):
@@ -233,9 +262,11 @@ def load_active_units():
                 return {}
     return {}
 
+
 def save_active_units(active_units):
     with open(ACTIVE_UNITS_FILE, "w") as f:
         json.dump(active_units, f)
+
 
 def load_inventory():
     if os.path.exists(INVENTORY_FILE):
@@ -245,6 +276,7 @@ def load_inventory():
             except json.JSONDecodeError:
                 return {}
     return {}
+
 
 async def get_user_unit(user_id):
     active_units = load_active_units()
@@ -256,19 +288,29 @@ async def get_user_unit(user_id):
     if active:
         # Find the first unit in inventory matching the name and stars
         for unit in user_units:
-            if unit['name'] == active['name'] and unit['stars'] == active['stars']:
+            if unit['name'] == active['name'] and unit['stars'] == active[
+                    'stars']:
                 return unit
     # Default: return first unit
     return user_units[0]
 
+
 async def get_bot_unit():
     return random.choice(UNIT_POOL)
+
 
 # Global dict to store ongoing battles: {(channel_id, user_id): Battle}
 BATTLES = {}
 
+
 class BattleView(View):
-    def __init__(self, battle, user_id, opponent_id, is_bot=False, show_buttons=True):
+
+    def __init__(self,
+                 battle,
+                 user_id,
+                 opponent_id,
+                 is_bot=False,
+                 show_buttons=True):
         super().__init__(timeout=120)
         self.battle = battle
         self.user_id = user_id
@@ -281,7 +323,8 @@ class BattleView(View):
         # Only allow the current turn's user to click
         current_turn_user = self.user_id if self.battle.turn == 0 else self.opponent_id
         if str(interaction.user.id) != str(current_turn_user):
-            await interaction.response.send_message("It's not your turn!", ephemeral=True)
+            await interaction.response.send_message("It's not your turn!",
+                                                    ephemeral=True)
             return False
         return True
 
@@ -290,7 +333,9 @@ class BattleView(View):
         if hasattr(unit, 'image') and unit.image:
             image_path = os.path.join(os.path.dirname(__file__), unit.image)
             if os.path.exists(image_path):
-                return discord.File(image_path, filename=os.path.basename(image_path)), f"attachment://{os.path.basename(image_path)}"
+                return discord.File(
+                    image_path, filename=os.path.basename(image_path)
+                ), f"attachment://{os.path.basename(image_path)}"
         return None, None
 
     def get_hp_bar(self, current, maximum, length=16):
@@ -301,9 +346,13 @@ class BattleView(View):
         empty = length - filled
         return '▰' * filled + '▱' * empty
 
+
 class AttackButton(Button):
+
     def __init__(self, battle_view):
-        super().__init__(label="Attack", style=discord.ButtonStyle.primary, emoji="⚔️")
+        super().__init__(label="Attack",
+                         style=discord.ButtonStyle.primary,
+                         emoji="⚔️")
         self.battle_view = battle_view
 
     async def callback(self, interaction):
@@ -332,14 +381,21 @@ class AttackButton(Button):
         shield_val = getattr(battle, 'second_player_shield', 0)
         shield_used = getattr(battle, 'second_player_shield_used', False)
         # Always show the starting shield value if it was set (even if not used yet)
-        if shield_val > 0 and (not shield_used or (shield_used and shield_val > 0)):
+        if shield_val > 0 and (not shield_used or
+                               (shield_used and shield_val > 0)):
             shield_str = f"\n🛡️ Shield: {shield_val}"
         elif shield_used and shield_val <= 0:
             shield_str = "\n🛡️ Shield Broken!"
         else:
             shield_str = ""
-        embed.add_field(name=label1, value=f"{unit1.current_hp}/{unit1.max_hp}\n{hp_bar1}\n{stats1}")
-        embed.add_field(name=label2, value=f"{unit2.current_hp}/{unit2.max_hp}\n{hp_bar2}\n{stats2}{shield_str}")
+        embed.add_field(
+            name=label1,
+            value=f"{unit1.current_hp}/{unit1.max_hp}\n{hp_bar1}\n{stats1}")
+        embed.add_field(
+            name=label2,
+            value=
+            f"{unit2.current_hp}/{unit2.max_hp}\n{hp_bar2}\n{stats2}{shield_str}"
+        )
         # Show whose turn it is
         if self.battle_view.is_bot:
             if battle.turn == 0:
@@ -367,8 +423,12 @@ class AttackButton(Button):
             if self.battle_view.is_bot:
                 result = f"{unit1.name} (You) wins!" if winner == 0 else f"{unit2.name} (Bot) wins!"
                 embed.add_field(name="Result", value=result, inline=False)
-                await interaction.response.edit_message(embed=embed, attachments=files, view=None)
-                BATTLES.pop((interaction.channel_id, str(self.battle_view.user_id)), None)
+                await interaction.response.edit_message(embed=embed,
+                                                        attachments=files,
+                                                        view=None)
+                BATTLES.pop(
+                    (interaction.channel_id, str(self.battle_view.user_id)),
+                    None)
                 # If boss was defeated, handle defeat, prize, and respawn immediately
                 if winner == 0:  # Player wins
                     from .battle_commands import load_boss, save_boss
@@ -380,28 +440,39 @@ class AttackButton(Button):
                         JACKPOT_MULTIPLIER = 10  # Change this value to adjust the multiplier
                         jackpot = int(total_stats * JACKPOT_MULTIPLIER)
                         user_points = load_points()
-                        user_points[str(self.battle_view.user_id)] = user_points.get(str(self.battle_view.user_id), 0) + jackpot
+                        user_points[str(
+                            self.battle_view.user_id)] = user_points.get(
+                                str(self.battle_view.user_id), 0) + jackpot
                         save_points(user_points)
                         boss["current_hp"] = 0
                         save_boss(boss)
                         # Announce the prize
-                        await interaction.followup.send(f"🎉 You defeated the boss and won the jackpot: {jackpot} points! A new boss has appeared!", ephemeral=False)
+                        await interaction.followup.send(
+                            f"🎉 You defeated the boss and won the jackpot: {jackpot} points! A new boss has appeared!",
+                            ephemeral=False)
                         # Spawn a new boss
                         load_boss()
                 return
             else:
                 # Get the winner's Discord display name
                 winner_id = self.battle_view.user_id if winner == 0 else self.battle_view.opponent_id
-                winner_member = interaction.guild.get_member(int(winner_id)) if interaction.guild else None
+                winner_member = interaction.guild.get_member(
+                    int(winner_id)) if interaction.guild else None
                 winner_name = winner_member.display_name if winner_member else f"<@{winner_id}>"
                 result = f"{unit1.name if winner == 0 else unit2.name} ({winner_name}) wins!"
                 embed.add_field(name="Result", value=result, inline=False)
-                await interaction.response.edit_message(embed=embed, attachments=files, view=None)
-                BATTLES.pop((interaction.channel_id, str(self.battle_view.user_id)), None)
+                await interaction.response.edit_message(embed=embed,
+                                                        attachments=files,
+                                                        view=None)
+                BATTLES.pop(
+                    (interaction.channel_id, str(self.battle_view.user_id)),
+                    None)
                 return
         # If bot, handle bot turn
         if self.battle_view.is_bot and battle.turn == 1:
-            await interaction.response.edit_message(embed=embed, attachments=files, view=None)
+            await interaction.response.edit_message(embed=embed,
+                                                    attachments=files,
+                                                    view=None)
             await asyncio.sleep(1)
             winner = battle.next_turn()
             log2 = '\n'.join(battle.log[-1:])
@@ -412,14 +483,22 @@ class AttackButton(Button):
                 embed2.set_thumbnail(url=url1b)
             if url2b:
                 embed2.set_image(url=url2b)
-            hp_bar1b = self.battle_view.get_hp_bar(unit1.current_hp, unit1.max_hp)
-            hp_bar2b = self.battle_view.get_hp_bar(unit2.current_hp, unit2.max_hp)
+            hp_bar1b = self.battle_view.get_hp_bar(unit1.current_hp,
+                                                   unit1.max_hp)
+            hp_bar2b = self.battle_view.get_hp_bar(unit2.current_hp,
+                                                   unit2.max_hp)
             label1b = f"Your Unit: {unit1.name} HP"
             label2b = f"Bot Unit: {unit2.name} HP"
             stats1b = f"ATK: {unit1.stats['ATK']}  DEF: {unit1.stats['DEF']}"
             stats2b = f"ATK: {unit2.stats['ATK']}  DEF: {unit2.stats['DEF']}"
-            embed2.add_field(name=label1b, value=f"{unit1.current_hp}/{unit1.max_hp}\n{hp_bar1b}\n{stats1b}")
-            embed2.add_field(name=label2b, value=f"{unit2.current_hp}/{unit2.max_hp}\n{hp_bar2b}\n{stats2b}")
+            embed2.add_field(
+                name=label1b,
+                value=
+                f"{unit1.current_hp}/{unit1.max_hp}\n{hp_bar1b}\n{stats1b}")
+            embed2.add_field(
+                name=label2b,
+                value=
+                f"{unit2.current_hp}/{unit2.max_hp}\n{hp_bar2b}\n{stats2b}")
 
             # --- Save boss HP after every bot turn ---
             from .battle_commands import load_boss, save_boss
@@ -430,38 +509,73 @@ class AttackButton(Button):
             if winner is not None:
                 result = f"{unit1.name} (You) wins!" if winner == 0 else f"{unit2.name} (Bot) wins!"
                 embed2.add_field(name="Result", value=result, inline=False)
-                await interaction.edit_original_response(embed=embed2, attachments=[f for f in [file1b, file2b] if f], view=None)
-                BATTLES.pop((interaction.channel_id, str(self.battle_view.user_id)), None)
+                await interaction.edit_original_response(
+                    embed=embed2,
+                    attachments=[f for f in [file1b, file2b] if f],
+                    view=None)
+                BATTLES.pop(
+                    (interaction.channel_id, str(self.battle_view.user_id)),
+                    None)
                 return
             embed2.description += "\nYour turn!"
             # Always reuse the same battle object for the view
-            await interaction.edit_original_response(embed=embed2, attachments=[f for f in [file1b, file2b] if f], view=BattleView(self.battle_view.battle, self.battle_view.user_id, self.battle_view.opponent_id, is_bot=True, show_buttons=True))
+            await interaction.edit_original_response(
+                embed=embed2,
+                attachments=[f for f in [file1b, file2b] if f],
+                view=BattleView(self.battle_view.battle,
+                                self.battle_view.user_id,
+                                self.battle_view.opponent_id,
+                                is_bot=True,
+                                show_buttons=True))
         else:
             # PvP: Only show button to the player whose turn it is
             turn_user = self.battle_view.user_id if battle.turn == 0 else self.battle_view.opponent_id
             show_buttons = str(interaction.user.id) == str(turn_user)
             # Always reuse the same battle object for the view
-            await interaction.response.edit_message(embed=embed, attachments=files, view=BattleView(self.battle_view.battle, self.battle_view.user_id, self.battle_view.opponent_id, is_bot=self.battle_view.is_bot, show_buttons=show_buttons))
+            await interaction.response.edit_message(
+                embed=embed,
+                attachments=files,
+                view=BattleView(self.battle_view.battle,
+                                self.battle_view.user_id,
+                                self.battle_view.opponent_id,
+                                is_bot=self.battle_view.is_bot,
+                                show_buttons=show_buttons))
+
 
 def register_battle_commands(client, GUILD_ID):
-    @client.tree.command(name="set_active_unit", description="Set your active unit for battle", guild=GUILD_ID)
-    @app_commands.describe(name="Name of the unit to set active (case-insensitive)")
+
+    @client.tree.command(name="set_active_unit",
+                         description="Set your active unit for battle",
+                         guild=GUILD_ID)
+    @app_commands.describe(
+        name="Name of the unit to set active (case-insensitive)")
     async def set_active_unit(interaction: discord.Interaction, name: str):
         user_id = str(interaction.user.id)
         inventory = load_inventory()
         user_units = inventory.get(user_id, [])
         # Find by name (case-insensitive)
-        chosen = next((u for u in user_units if u['name'].lower() == name.lower()), None)
+        chosen = next(
+            (u for u in user_units if u['name'].lower() == name.lower()), None)
         if not chosen:
-            await interaction.response.send_message(f"❌ You don't own a unit named '{name}'.", ephemeral=True)
+            await interaction.response.send_message(
+                f"❌ You don't own a unit named '{name}'.", ephemeral=True)
             return
         active_units = load_active_units()
-        active_units[user_id] = {"name": chosen['name'], "stars": chosen['stars']}
+        active_units[user_id] = {
+            "name": chosen['name'],
+            "stars": chosen['stars']
+        }
         save_active_units(active_units)
-        await interaction.response.send_message(f"✅ Set your active unit to {chosen['name']} ({chosen['stars']}⭐)", ephemeral=True)
+        await interaction.response.send_message(
+            f"✅ Set your active unit to {chosen['name']} ({chosen['stars']}⭐)",
+            ephemeral=True)
 
-    @client.tree.command(name="fight", description="Fight another player or the Boss! (Boss fight if 'boss')", guild=GUILD_ID)
-    @app_commands.describe(opponent="@mention a user or type 'boss' to fight the AI/Boss")
+    @client.tree.command(
+        name="fight",
+        description="Fight another player or the Boss! (Boss fight if 'boss')",
+        guild=GUILD_ID)
+    @app_commands.describe(
+        opponent="@mention a user or type 'boss' to fight the AI/Boss")
     async def fight(interaction: discord.Interaction, opponent: str):
         user_id = str(interaction.user.id)
         if opponent.lower() == 'boss':
@@ -482,13 +596,15 @@ def register_battle_commands(client, GUILD_ID):
             elif opponent.isdigit():
                 opp_id = opponent
             else:
-                await interaction.response.send_message("Please mention a user or type 'boss'!", ephemeral=True)
+                await interaction.response.send_message(
+                    "Please mention a user or type 'boss'!", ephemeral=True)
                 return
             opp_unit_data = await get_user_unit(opp_id)
             is_bot = False
         user_unit_data = await get_user_unit(user_id)
         if not user_unit_data or not opp_unit_data:
-            await interaction.response.send_message("Both players must have an active unit set!", ephemeral=True)
+            await interaction.response.send_message(
+                "Both players must have an active unit set!", ephemeral=True)
             return
         unit1 = BattleUnit(user_unit_data)
         unit2 = BattleUnit(opp_unit_data)
@@ -500,40 +616,58 @@ def register_battle_commands(client, GUILD_ID):
         # Store battle state
         BATTLES[(interaction.channel_id, user_id)] = battle
         # Prepare the initial battle embed (same as AttackButton logic)
-        embed = discord.Embed(title="Battle Start!", description='\n'.join(battle.log[-1:]) + f"\n<@{user_id}>'s turn!")
-        file1, url1 = BattleView(battle, user_id, opp_id, is_bot=is_bot).get_unit_image_file(unit1)
-        file2, url2 = BattleView(battle, user_id, opp_id, is_bot=is_bot).get_unit_image_file(unit2)
+        embed = discord.Embed(title="Battle Start!",
+                              description='\n'.join(battle.log[-1:]) +
+                              f"\n<@{user_id}>'s turn!")
+        file1, url1 = BattleView(battle, user_id, opp_id,
+                                 is_bot=is_bot).get_unit_image_file(unit1)
+        file2, url2 = BattleView(battle, user_id, opp_id,
+                                 is_bot=is_bot).get_unit_image_file(unit2)
         if url1:
             embed.set_thumbnail(url=url1)
         if url2:
             embed.set_image(url=url2)
-        hp_bar1 = BattleView(battle, user_id, opp_id, is_bot=is_bot).get_hp_bar(unit1.current_hp, unit1.max_hp)
-        hp_bar2 = BattleView(battle, user_id, opp_id, is_bot=is_bot).get_hp_bar(unit2.current_hp, unit2.max_hp)
+        hp_bar1 = BattleView(battle, user_id, opp_id,
+                             is_bot=is_bot).get_hp_bar(unit1.current_hp,
+                                                       unit1.max_hp)
+        hp_bar2 = BattleView(battle, user_id, opp_id,
+                             is_bot=is_bot).get_hp_bar(unit2.current_hp,
+                                                       unit2.max_hp)
         label1 = f"Your Unit: {unit1.name} HP"
         label2 = f"Boss Unit: {unit2.name} HP" if is_bot else f"Opponent Unit: {unit2.name} HP"
         stats1 = f"ATK: {unit1.stats['ATK']}  DEF: {unit1.stats['DEF']}"
         stats2 = f"ATK: {unit2.stats['ATK']}  DEF: {unit2.stats['DEF']}"
         shield_val = getattr(battle, 'second_player_shield', 0)
         shield_used = getattr(battle, 'second_player_shield_used', False)
-        if shield_val > 0 and (not shield_used or (shield_used and shield_val > 0)):
+        if shield_val > 0 and (not shield_used or
+                               (shield_used and shield_val > 0)):
             shield_str = f"\n🛡️ Shield: {shield_val}"
         elif shield_used and shield_val <= 0:
             shield_str = "\n🛡️ Shield Broken!"
         else:
             shield_str = ""
-        embed.add_field(name=label1, value=f"{unit1.current_hp}/{unit1.max_hp}\n{hp_bar1}\n{stats1}")
-        embed.add_field(name=label2, value=f"{unit2.current_hp}/{unit2.max_hp}\n{hp_bar2}\n{stats2}{shield_str}")
+        embed.add_field(
+            name=label1,
+            value=f"{unit1.current_hp}/{unit1.max_hp}\n{hp_bar1}\n{stats1}")
+        embed.add_field(
+            name=label2,
+            value=
+            f"{unit2.current_hp}/{unit2.max_hp}\n{hp_bar2}\n{stats2}{shield_str}"
+        )
         files = []
         if file1:
             files.append(file1)
         if file2 and (not file1 or file2.filename != file1.filename):
             files.append(file2)
-        await interaction.response.send_message(
-            embed=embed,
-            files=files,
-            view=BattleView(battle, user_id, opp_id, is_bot=is_bot, show_buttons=True),
-            ephemeral=False
-        )
+        await interaction.response.send_message(embed=embed,
+                                                files=files,
+                                                view=BattleView(
+                                                    battle,
+                                                    user_id,
+                                                    opp_id,
+                                                    is_bot=is_bot,
+                                                    show_buttons=True),
+                                                ephemeral=False)
         # After the battle, update boss HP and handle defeat if boss fight
         if is_bot and opponent.lower() == 'boss':
             # This logic should be triggered after the battle ends, e.g. in AttackButton or similar
@@ -553,7 +687,8 @@ def register_battle_commands(client, GUILD_ID):
                 boss["current_hp"] = 0
                 save_boss(boss)
                 # Announce the prize
-                await interaction.followup.send(f"🎉 You defeated the boss and won the jackpot: {jackpot} points! A new boss has appeared!", ephemeral=False)
+                await interaction.followup.send(
+                    f"🎉 You defeated the boss and won the jackpot: {jackpot} points! A new boss has appeared!",
+                    ephemeral=False)
                 # Spawn a new boss
                 load_boss()
-
