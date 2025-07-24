@@ -5,7 +5,39 @@ import json
 import asyncio
 from discord import app_commands
 from discord.ui import View, Button
+
 from .gacha_commands import UNIT_POOL
+
+# --- Boss System Integration ---
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+BOSS_FILE = os.path.join(DATA_DIR, "boss_data.json")
+
+def load_boss():
+    if os.path.exists(BOSS_FILE):
+        with open(BOSS_FILE, "r") as f:
+            return json.load(f)
+    # Pick a random unit and buff it
+    boss_unit = random.choice(UNIT_POOL).copy()
+    boss_unit["stats"] = boss_unit["stats"].copy()
+    for stat in boss_unit["stats"]:
+        boss_unit["stats"][stat] = int(boss_unit["stats"][stat] * 10)
+    boss = {
+        "name": boss_unit["name"],
+        "stars": boss_unit["stars"],
+        "stats": boss_unit["stats"],
+        "max_hp": boss_unit["stats"]["HP"],
+        "current_hp": boss_unit["stats"]["HP"],
+        "image": boss_unit.get("image"),
+        "damage_log": [],
+        "defeated": False
+    }
+    with open(BOSS_FILE, "w") as f:
+        json.dump(boss, f)
+    return boss
+
+def save_boss(boss):
+    with open(BOSS_FILE, "w") as f:
+        json.dump(boss, f)
 
 # --- Battle System Core ---
 class BattleUnit:
@@ -380,13 +412,21 @@ def register_battle_commands(client, GUILD_ID):
         save_active_units(active_units)
         await interaction.response.send_message(f"✅ Set your active unit to {chosen['name']} ({chosen['stars']}⭐)", ephemeral=True)
 
-    @client.tree.command(name="fight", description="Fight another player or the bot!", guild=GUILD_ID)
-    @app_commands.describe(opponent="@mention a user or type 'bot' to fight the AI")
+    @client.tree.command(name="fight", description="Fight another player or the bot! (Boss fight if 'bot')", guild=GUILD_ID)
+    @app_commands.describe(opponent="@mention a user or type 'bot' to fight the AI/Boss")
     async def fight(interaction: discord.Interaction, opponent: str):
         user_id = str(interaction.user.id)
         if opponent.lower() == 'bot':
             opp_id = 'bot'
-            opp_unit_data = await get_bot_unit()
+            boss = load_boss()
+            if boss["defeated"]:
+                await interaction.response.send_message("The boss has already been defeated! Wait for a new one.", ephemeral=True)
+                return
+            # Use persistent boss as the opponent
+            opp_unit_data = boss.copy()
+            # Use current HP for the boss
+            opp_unit_data["stats"] = opp_unit_data["stats"].copy()
+            opp_unit_data["stats"]["HP"] = boss["current_hp"]
             is_bot = True
         else:
             if opponent.startswith('<@') and opponent.endswith('>'):
@@ -404,6 +444,10 @@ def register_battle_commands(client, GUILD_ID):
             return
         unit1 = BattleUnit(user_unit_data)
         unit2 = BattleUnit(opp_unit_data)
+        # If boss fight, set boss HP to persistent value
+        if is_bot and opponent.lower() == 'bot':
+            unit2.current_hp = boss["current_hp"]
+            unit2.max_hp = boss["max_hp"]
         battle = Battle(unit1, unit2)
         # Store battle state
         BATTLES[(interaction.channel_id, user_id)] = battle
@@ -442,5 +486,12 @@ def register_battle_commands(client, GUILD_ID):
             view=BattleView(battle, user_id, opp_id, is_bot=is_bot, show_buttons=True),
             ephemeral=False
         )
+
+        # After the battle, update boss HP and handle defeat if boss fight
+        if is_bot and opponent.lower() == 'bot':
+            # Wait for the battle to finish (handled by UI/buttons)
+            # This logic should be triggered after the battle ends, e.g. in AttackButton or similar
+            # You may want to move boss HP update logic to where the winner is determined
+            pass
 
 # To use: import and call register_battle_commands(client, GUILD_ID) from your main bot setup
