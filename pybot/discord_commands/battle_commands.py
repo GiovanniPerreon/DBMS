@@ -377,7 +377,8 @@ class AttackButton(Button):
                     if not boss["defeated"]:
                         boss["defeated"] = True
                         total_stats = sum(boss["stats"].values())
-                        jackpot = int(total_stats * 5)
+                        JACKPOT_MULTIPLIER = 10  # Change this value to adjust the multiplier
+                        jackpot = int(total_stats * JACKPOT_MULTIPLIER)
                         user_points = load_points()
                         user_points[str(self.battle_view.user_id)] = user_points.get(str(self.battle_view.user_id), 0) + jackpot
                         save_points(user_points)
@@ -543,7 +544,8 @@ def register_battle_commands(client, GUILD_ID):
                 boss["defeated"] = True
                 # Prize: 50% of the sum of all boss stats
                 total_stats = sum(boss["stats"].values())
-                jackpot = int(total_stats * 5)
+                JACKPOT_MULTIPLIER = 10  # Change this value to adjust the multiplier
+                jackpot = int(total_stats * JACKPOT_MULTIPLIER)
                 # Award to the winner (user)
                 user_points = load_points()
                 user_points[user_id] = user_points.get(user_id, 0) + jackpot

@@ -187,6 +187,37 @@ def register_gacha_commands(client, GUILD_ID):
             self.add_item(SinglePullButton(user_id))
             self.add_item(TenPullButton(user_id))
             self.add_item(HundredPullButton(user_id))
+            self.add_item(ThousandPullButton(user_id))
+
+    class ThousandPullButton(discord.ui.Button):
+        def __init__(self, user_id):
+            super().__init__(label="1000 Pull", style=discord.ButtonStyle.danger)
+            self.user_id = user_id
+        async def callback(self, interaction):
+            inventory = load_inventory()
+            user_points = load_points()
+            points = user_points.get(self.user_id, 0)
+            total_cost = SUMMON_COST * 1000
+            if points < total_cost:
+                await interaction.response.edit_message(content=f"❌ Not enough points! You need {total_cost} points for 1000 pulls.", view=SummonView(self.user_id))
+                return
+            results = []
+            for _ in range(1000):
+                unit = get_random_unit()
+                results.append(unit)
+                if self.user_id not in inventory:
+                    inventory[self.user_id] = []
+                inventory[self.user_id].append(unit)
+            user_points[self.user_id] = points - total_cost
+            save_points(user_points)
+            save_inventory(inventory)
+            # Show a summary by unit name and stars
+            summary = {}
+            for unit in results:
+                key = (unit['name'], unit['stars'])
+                summary[key] = summary.get(key, 0) + 1
+            lines = [f"{name} ({stars}⭐) x{count}" for (name, stars), count in sorted(summary.items(), key=lambda x: (-x[0][1], x[0][0]))]
+            await interaction.response.edit_message(content=f"✨ 1000 Pull Results:\n" + "\n".join(lines) + f"\n💰 Points left: {user_points[self.user_id]}", view=SummonView(self.user_id))
 
     class HundredPullButton(discord.ui.Button):
         def __init__(self, user_id):
