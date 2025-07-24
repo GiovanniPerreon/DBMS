@@ -48,7 +48,7 @@ UNIT_POOL = [
         "stars": 6,
         "image": "images/Michael_Saves.png",
         "stats": {"HP": 250, "ATK": 100, "DEF": 60},
-        "ability": "America supports Michael Saves: Increases Post Mitigation Damage by 20%." 
+        "ability": "America supports Michael Saves: Double Post Mitigation Damage." 
     },
 ]
 STAR_RATES = [
@@ -106,6 +106,61 @@ def get_unit_image_path(unit):
 # Register gacha commands
 
 def register_gacha_commands(client, GUILD_ID):
+    @client.tree.command(name="buff_unit", description="Combine all identical units (by name and star) to buff one!", guild=GUILD_ID)
+    @app_commands.describe(name="Name of the unit to buff (case-insensitive)")
+    async def buff_unit(interaction: discord.Interaction, name: str):
+        user_id = str(interaction.user.id)
+        inventory = load_inventory()
+        user_units = inventory.get(user_id, [])
+        # Group units by (name, stars)
+        groups = {}
+        for u in user_units:
+            if u['name'].lower() == name.lower():
+                key = u['stars']
+                groups.setdefault(key, []).append(u)
+        buffed_any = False
+        messages = []
+        new_units = user_units.copy()
+        for stars, matches in groups.items():
+            if len(matches) < 2:
+                continue
+            buffed_any = True
+            to_buff = matches[0]
+            num_to_remove = len(matches) - 1
+            # Remove all but one from inventory
+            removed = 0
+            temp_units = []
+            for u in new_units:
+                if u is to_buff:
+                    temp_units.append(u)
+                elif u['name'].lower() == name.lower() and u['stars'] == stars and removed < num_to_remove:
+                    removed += 1
+                    continue
+                else:
+                    temp_units.append(u)
+            new_units = temp_units
+            # Buff: for each unit being combined, randomly select a stat and add stars to to_buff
+            stat_increases = {"HP": 0, "ATK": 0, "DEF": 0}
+            for _ in range(num_to_remove):
+                stat = random.choice(["HP", "ATK", "DEF"])
+                stat_increases[stat] += stars
+            # Apply buffs and build message
+            buff_msgs = []
+            for stat in ["HP", "ATK", "DEF"]:
+                if stat_increases[stat] > 0:
+                    old_val = to_buff["stats"][stat] - stat_increases[stat]
+                    new_val = to_buff["stats"][stat]
+                    to_buff["stats"][stat] += stat_increases[stat]
+                    buff_msgs.append(f"{stat} +{stat_increases[stat]}")
+            messages.append(f"{name} ({stars}⭐): {'; '.join(buff_msgs)} (combined {len(matches)} copies)")
+        if not buffed_any:
+            await interaction.response.send_message("❌ You need at least two of a unit (same name and star) to buff!", ephemeral=True)
+            return
+        inventory[user_id] = new_units
+        save_inventory(inventory)
+        await interaction.response.send_message(
+            "✨ Buff results:\n" + "\n".join(messages), ephemeral=True
+        )
     @client.tree.command(name="all_inventories", description="Show all users' summoned units", guild=GUILD_ID)
     async def all_inventories(interaction: discord.Interaction):
         inventory = load_inventory()
@@ -131,6 +186,37 @@ def register_gacha_commands(client, GUILD_ID):
             self.user_id = user_id
             self.add_item(SinglePullButton(user_id))
             self.add_item(TenPullButton(user_id))
+            self.add_item(HundredPullButton(user_id))
+
+    class HundredPullButton(discord.ui.Button):
+        def __init__(self, user_id):
+            super().__init__(label="100 Pull", style=discord.ButtonStyle.danger)
+            self.user_id = user_id
+        async def callback(self, interaction):
+            inventory = load_inventory()
+            user_points = load_points()
+            points = user_points.get(self.user_id, 0)
+            total_cost = SUMMON_COST * 100
+            if points < total_cost:
+                await interaction.response.edit_message(content=f"❌ Not enough points! You need {total_cost} points for 100 pulls.", view=SummonView(self.user_id))
+                return
+            results = []
+            for _ in range(100):
+                unit = get_random_unit()
+                results.append(unit)
+                if self.user_id not in inventory:
+                    inventory[self.user_id] = []
+                inventory[self.user_id].append(unit)
+            user_points[self.user_id] = points - total_cost
+            save_points(user_points)
+            save_inventory(inventory)
+            # Show a summary by unit name and stars
+            summary = {}
+            for unit in results:
+                key = (unit['name'], unit['stars'])
+                summary[key] = summary.get(key, 0) + 1
+            lines = [f"{name} ({stars}⭐) x{count}" for (name, stars), count in sorted(summary.items(), key=lambda x: (-x[0][1], x[0][0]))]
+            await interaction.response.edit_message(content=f"✨ 100 Pull Results:\n" + "\n".join(lines) + f"\n💰 Points left: {user_points[self.user_id]}", view=SummonView(self.user_id))
 
     class SinglePullButton(discord.ui.Button):
         def __init__(self, user_id):

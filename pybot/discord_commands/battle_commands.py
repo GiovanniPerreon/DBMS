@@ -15,8 +15,15 @@ BOSS_FILE = os.path.join(DATA_DIR, "boss_data.json")
 def load_boss():
     if os.path.exists(BOSS_FILE):
         with open(BOSS_FILE, "r") as f:
-            return json.load(f)
-    # Pick a random unit and buff it
+            boss = json.load(f)
+            if not boss.get("defeated", False):
+                return boss
+            # If boss is defeated, delete the file to ensure a fresh boss is created
+            try:
+                os.remove(BOSS_FILE)
+            except Exception:
+                pass
+    # If no boss file or boss is defeated, spawn a new boss
     boss_unit = random.choice(UNIT_POOL).copy()
     boss_unit["stats"] = boss_unit["stats"].copy()
     for stat in boss_unit["stats"]:
@@ -118,10 +125,10 @@ class BattleUnit:
         return damage
 
     def america_supports(self, trigger, attacker, damage, battle):
-        # Increases post-mitigation damage by 20%
+        # Double post-mitigation damage
         if trigger == 'on_attack':
-            boosted = int(damage * 1.2)
-            battle.log.append(f"{self.name}'s America supports Michael Saves! Post-mitigation damage increased by 20%: {damage} → {boosted}.")
+            boosted = int(damage * 2)
+            battle.log.append(f"{self.name}'s America supports Michael Saves! Post-mitigation damage DOUBLED: {damage} → {boosted}.")
             return boosted
         return damage
 
@@ -347,20 +354,50 @@ class AttackButton(Button):
             files.append(file1)
         if file2 and (not file1 or file2.filename != file1.filename):
             files.append(file2)
+
+        # --- Save boss HP after every turn if boss fight ---
+        if self.battle_view.is_bot:
+            from .battle_commands import load_boss, save_boss
+            boss = load_boss()
+            boss["current_hp"] = unit2.current_hp
+            save_boss(boss)
+
         # Remove button for the player who shouldn't act
         if winner is not None:
             if self.battle_view.is_bot:
                 result = f"{unit1.name} (You) wins!" if winner == 0 else f"{unit2.name} (Bot) wins!"
+                embed.add_field(name="Result", value=result, inline=False)
+                await interaction.response.edit_message(embed=embed, attachments=files, view=None)
+                BATTLES.pop((interaction.channel_id, str(self.battle_view.user_id)), None)
+                # If boss was defeated, handle defeat, prize, and respawn immediately
+                if winner == 0:  # Player wins
+                    from .battle_commands import load_boss, save_boss
+                    from .gacha_commands import load_points, save_points
+                    boss = load_boss()
+                    if not boss["defeated"]:
+                        boss["defeated"] = True
+                        total_stats = sum(boss["stats"].values())
+                        jackpot = int(total_stats * 5)
+                        user_points = load_points()
+                        user_points[str(self.battle_view.user_id)] = user_points.get(str(self.battle_view.user_id), 0) + jackpot
+                        save_points(user_points)
+                        boss["current_hp"] = 0
+                        save_boss(boss)
+                        # Announce the prize
+                        await interaction.followup.send(f"🎉 You defeated the boss and won the jackpot: {jackpot} points! A new boss has appeared!", ephemeral=False)
+                        # Spawn a new boss
+                        load_boss()
+                return
             else:
                 # Get the winner's Discord display name
                 winner_id = self.battle_view.user_id if winner == 0 else self.battle_view.opponent_id
                 winner_member = interaction.guild.get_member(int(winner_id)) if interaction.guild else None
                 winner_name = winner_member.display_name if winner_member else f"<@{winner_id}>"
                 result = f"{unit1.name if winner == 0 else unit2.name} ({winner_name}) wins!"
-            embed.add_field(name="Result", value=result, inline=False)
-            await interaction.response.edit_message(embed=embed, attachments=files, view=None)
-            BATTLES.pop((interaction.channel_id, str(self.battle_view.user_id)), None)
-            return
+                embed.add_field(name="Result", value=result, inline=False)
+                await interaction.response.edit_message(embed=embed, attachments=files, view=None)
+                BATTLES.pop((interaction.channel_id, str(self.battle_view.user_id)), None)
+                return
         # If bot, handle bot turn
         if self.battle_view.is_bot and battle.turn == 1:
             await interaction.response.edit_message(embed=embed, attachments=files, view=None)
@@ -382,6 +419,13 @@ class AttackButton(Button):
             stats2b = f"ATK: {unit2.stats['ATK']}  DEF: {unit2.stats['DEF']}"
             embed2.add_field(name=label1b, value=f"{unit1.current_hp}/{unit1.max_hp}\n{hp_bar1b}\n{stats1b}")
             embed2.add_field(name=label2b, value=f"{unit2.current_hp}/{unit2.max_hp}\n{hp_bar2b}\n{stats2b}")
+
+            # --- Save boss HP after every bot turn ---
+            from .battle_commands import load_boss, save_boss
+            boss = load_boss()
+            boss["current_hp"] = unit2.current_hp
+            save_boss(boss)
+
             if winner is not None:
                 result = f"{unit1.name} (You) wins!" if winner == 0 else f"{unit2.name} (Bot) wins!"
                 embed2.add_field(name="Result", value=result, inline=False)
@@ -413,7 +457,7 @@ def register_battle_commands(client, GUILD_ID):
         save_active_units(active_units)
         await interaction.response.send_message(f"✅ Set your active unit to {chosen['name']} ({chosen['stars']}⭐)", ephemeral=True)
 
-    @client.tree.command(name="fight", description="Fight another player or the bot! (Boss fight if 'boss')", guild=GUILD_ID)
+    @client.tree.command(name="fight", description="Fight another player or the Boss! (Boss fight if 'boss')", guild=GUILD_ID)
     @app_commands.describe(opponent="@mention a user or type 'boss' to fight the AI/Boss")
     async def fight(interaction: discord.Interaction, opponent: str):
         user_id = str(interaction.user.id)
@@ -421,8 +465,8 @@ def register_battle_commands(client, GUILD_ID):
             opp_id = 'boss'
             boss = load_boss()
             if boss["defeated"]:
-                await interaction.response.send_message("The boss has already been defeated! Wait for a new one.", ephemeral=True)
-                return
+                # Respawn a new boss automatically
+                boss = load_boss()
             # Use persistent boss as the opponent
             opp_unit_data = boss.copy()
             # Use current HP for the boss
@@ -463,7 +507,7 @@ def register_battle_commands(client, GUILD_ID):
         hp_bar1 = BattleView(battle, user_id, opp_id, is_bot=is_bot).get_hp_bar(unit1.current_hp, unit1.max_hp)
         hp_bar2 = BattleView(battle, user_id, opp_id, is_bot=is_bot).get_hp_bar(unit2.current_hp, unit2.max_hp)
         label1 = f"Your Unit: {unit1.name} HP"
-        label2 = f"Bot Unit: {unit2.name} HP" if is_bot else f"Opponent Unit: {unit2.name} HP"
+        label2 = f"Boss Unit: {unit2.name} HP" if is_bot else f"Opponent Unit: {unit2.name} HP"
         stats1 = f"ATK: {unit1.stats['ATK']}  DEF: {unit1.stats['DEF']}"
         stats2 = f"ATK: {unit2.stats['ATK']}  DEF: {unit2.stats['DEF']}"
         shield_val = getattr(battle, 'second_player_shield', 0)
@@ -487,12 +531,25 @@ def register_battle_commands(client, GUILD_ID):
             view=BattleView(battle, user_id, opp_id, is_bot=is_bot, show_buttons=True),
             ephemeral=False
         )
-
         # After the battle, update boss HP and handle defeat if boss fight
         if is_bot and opponent.lower() == 'boss':
-            # Wait for the battle to finish (handled by UI/buttons)
             # This logic should be triggered after the battle ends, e.g. in AttackButton or similar
-            # You may want to move boss HP update logic to where the winner is determined
-            pass
+            # Patch: scale prize on all boss stats, award points, and spawn new boss
+            from .gacha_commands import load_points, save_points
+            boss = load_boss()
+            if unit2.current_hp <= 0 and not boss["defeated"]:
+                boss["defeated"] = True
+                # Prize: 50% of the sum of all boss stats
+                total_stats = sum(boss["stats"].values())
+                jackpot = int(total_stats * 5)
+                # Award to the winner (user)
+                user_points = load_points()
+                user_points[user_id] = user_points.get(user_id, 0) + jackpot
+                save_points(user_points)
+                boss["current_hp"] = 0
+                save_boss(boss)
+                # Announce the prize
+                await interaction.followup.send(f"🎉 You defeated the boss and won the jackpot: {jackpot} points! A new boss has appeared!", ephemeral=False)
+                # Spawn a new boss
+                load_boss()
 
-# To use: import and call register_battle_commands(client, GUILD_ID) from your main bot setup
