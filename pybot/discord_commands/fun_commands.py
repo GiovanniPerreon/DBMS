@@ -30,10 +30,10 @@ def register_fun_commands(client, GUILD_ID):
             result = " ".join(spin)
             payout = 0
             if spin[0] == spin[1] == spin[2]:
-                payout = 1000
+                payout = 5000
                 msg = f"JACKPOT! {result} You win {payout} points!"
             elif spin[0] == spin[1] or spin[1] == spin[2] or spin[0] == spin[2]:
-                payout = 100
+                payout = 300
                 msg = f"Nice! {result} You win {payout}x points!"
             else:
                 msg = f"{result} No win this time."
