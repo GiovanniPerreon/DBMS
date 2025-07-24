@@ -34,6 +34,9 @@ def register_voice_commands(client, GUILD_ID):
         voice_client = interaction.guild.voice_client
         if voice_client is None:
             voice_client = await voice_channel.connect(cls=VoiceRecvClient)
+        if hasattr(voice_client, 'is_listening') and voice_client.is_listening():
+            await interaction.response.send_message("❌ Already receiving audio! Stop the current session before starting a new one.", ephemeral=True)
+            return
         sink = MyAudioSink()
         voice_client.listen(sink)
         await interaction.response.send_message(f"🔊 Listening to voice channel: {voice_channel.name}", ephemeral=True)

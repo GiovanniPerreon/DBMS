@@ -4,7 +4,8 @@ import json
 import os
 
 def register_fun_commands(client, GUILD_ID):
-    DATA_FILE = os.path.join(os.path.dirname(__file__), "points_data.json")
+    DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+    DATA_FILE = os.path.join(DATA_DIR, "points_data.json")
     def load_data():
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, "r") as f:
@@ -29,10 +30,10 @@ def register_fun_commands(client, GUILD_ID):
             result = " ".join(spin)
             payout = 0
             if spin[0] == spin[1] == spin[2]:
-                payout = 1000
+                payout = 5000
                 msg = f"JACKPOT! {result} You win {payout} points!"
             elif spin[0] == spin[1] or spin[1] == spin[2] or spin[0] == spin[2]:
-                payout = 100
+                payout = 300
                 msg = f"Nice! {result} You win {payout}x points!"
             else:
                 msg = f"{result} No win this time."

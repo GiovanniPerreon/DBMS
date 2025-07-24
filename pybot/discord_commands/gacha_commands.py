@@ -1,10 +1,12 @@
 import discord
+from discord import app_commands
 import json
 import random
 import os
 
-POINTS_FILE = os.path.join(os.path.dirname(__file__), "points_data.json")
-DATA_FILE = os.path.join(os.path.dirname(__file__), "gacha_inventory.json")
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+POINTS_FILE = os.path.join(DATA_DIR, "points_data.json")
+DATA_FILE = os.path.join(DATA_DIR, "gacha_inventory.json")
 UNIT_POOL = [
     {
         "name": "Slime",
@@ -42,11 +44,11 @@ UNIT_POOL = [
         "ability": "Inferno: Deals 30 splash damage to all enemies at the end of the turn."
     },
     {
-        "name": "Michael_Saves",
+        "name": "Michael Saves",
         "stars": 6,
         "image": "images/Michael_Saves.png",
         "stats": {"HP": 250, "ATK": 100, "DEF": 60},
-        "ability": "America supports Michael Saves: Increases ATK by 20%." 
+        "ability": "America supports Michael Saves: Increases Post Mitigation Damage by 20%." 
     },
 ]
 STAR_RATES = [
@@ -99,12 +101,67 @@ def get_random_unit():
 def get_unit_image_path(unit):
     # Returns absolute path for unit image, using same logic as DATA_FILE
     path = os.path.join(os.path.dirname(__file__), unit['image'])
-    print("Resolved image path:", path, "Exists:", os.path.exists(path))
     return path
 
 # Register gacha commands
 
 def register_gacha_commands(client, GUILD_ID):
+
+    @client.tree.command(name="buff_unit", description="Combine all identical units (by name and star) to buff one!", guild=GUILD_ID)
+    @app_commands.describe(name="Name of the unit to buff (case-insensitive)")
+    async def buff_unit(interaction: discord.Interaction, name: str):
+        user_id = str(interaction.user.id)
+        inventory = load_inventory()
+        user_units = inventory.get(user_id, [])
+        # Group units by (name, stars)
+        groups = {}
+        for u in user_units:
+            if u['name'].lower() == name.lower():
+                key = u['stars']
+                groups.setdefault(key, []).append(u)
+        buffed_any = False
+        messages = []
+        new_units = user_units.copy()
+        for stars, matches in groups.items():
+            if len(matches) < 2:
+                continue
+            buffed_any = True
+            to_buff = matches[0]
+            num_to_remove = len(matches) - 1
+            # Remove all but one from inventory
+            removed = 0
+            temp_units = []
+            for u in new_units:
+                if u is to_buff:
+                    temp_units.append(u)
+                elif u['name'].lower() == name.lower() and u['stars'] == stars and removed < num_to_remove:
+                    removed += 1
+                    continue
+                else:
+                    temp_units.append(u)
+            new_units = temp_units
+            # Buff: for each unit being combined, randomly select a stat and add stars to to_buff
+            stat_increases = {"HP": 0, "ATK": 0, "DEF": 0}
+            for _ in range(num_to_remove):
+                stat = random.choice(["HP", "ATK", "DEF"])
+                stat_increases[stat] += stars
+            # Apply buffs and build message
+            buff_msgs = []
+            for stat in ["HP", "ATK", "DEF"]:
+                if stat_increases[stat] > 0:
+                    old_val = to_buff["stats"][stat] - stat_increases[stat]
+                    new_val = to_buff["stats"][stat]
+                    to_buff["stats"][stat] += stat_increases[stat]
+                    buff_msgs.append(f"{stat} +{stat_increases[stat]}")
+            messages.append(f"{name} ({stars}⭐): {'; '.join(buff_msgs)} (combined {len(matches)} copies)")
+        if not buffed_any:
+            await interaction.response.send_message("❌ You need at least two of a unit (same name and star) to buff!", ephemeral=True)
+            return
+        inventory[user_id] = new_units
+        save_inventory(inventory)
+        await interaction.response.send_message(
+            "✨ Buff results:\n" + "\n".join(messages), ephemeral=True
+        )
     @client.tree.command(name="all_inventories", description="Show all users' summoned units", guild=GUILD_ID)
     async def all_inventories(interaction: discord.Interaction):
         inventory = load_inventory()
@@ -222,5 +279,3 @@ def register_gacha_commands(client, GUILD_ID):
             await interaction.response.send_message(embed=embed, file=file, ephemeral=True)
         else:
             await interaction.response.send_message(embed=embed, ephemeral=True)
-
-# To use: import and call register_gacha_commands(client, user_points) from your main bot setup
