@@ -1,1 +1,1 @@
-{"name": "Knight", "stars": 3, "stats": {"HP": 1200, "ATK": 350, "DEF": 250}, "max_hp": 1200, "current_hp": 1144, "image": "images/Knight.png", "ability": "Shield Wall: Reduces incoming damage by 10.", "damage_log": [], "defeated": false, "spell": "Power Surge: Double attack for 1 turn", "spells": null}
+{"name": "Slime", "stars": 1, "stats": {"HP": 500, "ATK": 100, "DEF": 50}, "max_hp": 500, "current_hp": 500, "image": "images/Slime.png", "ability": "Sticky Body: Double Defence.", "damage_log": [], "defeated": false, "spell": "Heal: Restore 30% HP", "spells": null}
