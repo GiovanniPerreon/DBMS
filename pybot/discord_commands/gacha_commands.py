@@ -3,8 +3,9 @@ import json
 import random
 import os
 
-POINTS_FILE = os.path.join(os.path.dirname(__file__), "points_data.json")
-DATA_FILE = os.path.join(os.path.dirname(__file__), "gacha_inventory.json")
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+POINTS_FILE = os.path.join(DATA_DIR, "points_data.json")
+DATA_FILE = os.path.join(DATA_DIR, "gacha_inventory.json")
 UNIT_POOL = [
     {
         "name": "Slime",
@@ -42,7 +43,7 @@ UNIT_POOL = [
         "ability": "Inferno: Deals 30 splash damage to all enemies at the end of the turn."
     },
     {
-        "name": "Michael_Saves",
+        "name": "Michael Saves",
         "stars": 6,
         "image": "images/Michael_Saves.png",
         "stats": {"HP": 250, "ATK": 100, "DEF": 60},
@@ -99,7 +100,6 @@ def get_random_unit():
 def get_unit_image_path(unit):
     # Returns absolute path for unit image, using same logic as DATA_FILE
     path = os.path.join(os.path.dirname(__file__), unit['image'])
-    print("Resolved image path:", path, "Exists:", os.path.exists(path))
     return path
 
 # Register gacha commands

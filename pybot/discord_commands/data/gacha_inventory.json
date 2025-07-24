@@ -1,0 +1,27 @@
+{
+  "123456789012345678": [
+    {
+      "name": "Slime",
+      "stars": 1,
+      "image": "images/Slime.png",
+      "stats": {"HP": 50, "ATK": 10, "DEF": 5},
+      "ability": "Sticky Body: Double Defence."
+    },
+    {
+      "name": "Knight",
+      "stars": 3,
+      "image": "images/Knight.png",
+      "stats": {"HP": 120, "ATK": 35, "DEF": 25},
+      "ability": "Shield Wall: Reduces incoming damage by 10."
+    }
+  ],
+  "987654321098765432": [
+    {
+      "name": "Dragon",
+      "stars": 5,
+      "image": "images/Dragon.png",
+      "stats": {"HP": 200, "ATK": 80, "DEF": 40},
+      "ability": "Inferno: Deals 30 splash damage to all enemies at the end of the turn."
+    }
+  ]
+}

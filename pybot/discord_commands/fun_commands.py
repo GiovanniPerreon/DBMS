@@ -4,7 +4,8 @@ import json
 import os
 
 def register_fun_commands(client, GUILD_ID):
-    DATA_FILE = os.path.join(os.path.dirname(__file__), "points_data.json")
+    DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+    DATA_FILE = os.path.join(DATA_DIR, "points_data.json")
     def load_data():
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, "r") as f:
