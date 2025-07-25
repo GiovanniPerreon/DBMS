@@ -134,6 +134,27 @@ def sync_unit_metadata_to_inventory():
 # Register gacha commands
 
 def register_gacha_commands(client, GUILD_ID):
+    @client.tree.command(name="strongest_units", description="Show your strongest unit for each name", guild=GUILD_ID)
+    async def strongest_units(interaction: discord.Interaction):
+        user_id = str(interaction.user.id)
+        inventory = load_inventory()
+        units = inventory.get(user_id, [])
+        if not units:
+            await interaction.response.send_message("Your inventory is empty!", ephemeral=True)
+            return
+        # Find strongest unit for each name (by total stats)
+        best_units = {}
+        for unit in units:
+            name = unit["name"]
+            total_stats = sum(unit["stats"].values())
+            if name not in best_units or total_stats > sum(best_units[name]["stats"].values()):
+                best_units[name] = unit
+        # Build response
+        lines = []
+        for name, unit in sorted(best_units.items(), key=lambda x: (-x[1]["stars"], x[0])):
+            stats_str = ", ".join([f"{k}: {v}" for k, v in unit["stats"].items()])
+            lines.append(f"{name} ({unit['stars']}⭐): {stats_str}")
+        await interaction.response.send_message("Your strongest units:\n" + "\n".join(lines), ephemeral=True)
     @client.tree.command(name="buff_unit", description="Combine all identical units (by name and star) to buff one!", guild=GUILD_ID)
     @app_commands.describe(name="Name of the unit to buff (case-insensitive)")
     async def buff_unit(interaction: discord.Interaction, name: str):
