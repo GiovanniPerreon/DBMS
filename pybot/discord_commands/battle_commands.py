@@ -728,9 +728,7 @@ class AttackButton(Button):
                                 is_bot=True,
                                 show_buttons=True))
         else:
-            # PvP: Always show AttackButton for the user whose turn it is
-            turn_user = self.battle_view.user_id if battle.turn == 0 else self.battle_view.opponent_id
-            show_buttons = str(interaction.user.id) == str(turn_user)
+            # PvP: Always show AttackButton for anyone, but only allow correct player to use it
             await interaction.response.edit_message(
                 embed=embed,
                 attachments=files,
@@ -738,7 +736,7 @@ class AttackButton(Button):
                                 self.battle_view.user_id,
                                 self.battle_view.opponent_id,
                                 is_bot=self.battle_view.is_bot,
-                                show_buttons=show_buttons))
+                                show_buttons=True))
 
             # If PvP, also update the view for the other player so they see the button on their turn
             if not self.battle_view.is_bot:
