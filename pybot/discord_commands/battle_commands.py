@@ -659,6 +659,16 @@ class AttackButton(Button):
                 await interaction.response.edit_message(embed=embed,
                                                         attachments=files,
                                                         view=None)
+                # Also update the other player's message if possible
+                try:
+                    channel = interaction.channel
+                    # If you store message references for both players, update here
+                    # Example:
+                    # other_message = ... # get the other player's message object
+                    # await other_message.edit(embed=embed, attachments=files, view=None)
+                    pass  # Implement message update logic if you store message references
+                except Exception as e:
+                    print(f"[PvP UI] Could not update other player's result message: {e}")
                 BATTLES.pop(
                     (interaction.channel_id, str(self.battle_view.user_id)),
                     None)
