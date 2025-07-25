@@ -76,8 +76,9 @@ def register_fun_commands(client, GUILD_ID):
         async def callback(self, interaction):
             nonlocal user_points, bot_bank
             user_points, bot_bank = load_data()
-            # Sort users by points, descending
-            top = sorted(user_points.items(), key=lambda x: x[1], reverse=True)[:10]
+            from .prestige_commands import get_user_prestige
+            # Sort users by prestige, then points, descending
+            top = sorted(user_points.items(), key=lambda x: (get_user_prestige(x[0]), x[1]), reverse=True)[:10]
             embed = discord.Embed(title="🏆 Leaderboard", color=discord.Color.gold())
             lines = []
             # Add bot bank as the first entry
@@ -88,7 +89,8 @@ def register_fun_commands(client, GUILD_ID):
                 for idx, (uid, pts) in enumerate(top, 1):
                     member = interaction.guild.get_member(int(uid)) if interaction.guild else None
                     name = member.display_name if member else f"User {uid}"
-                    lines.append(f"**{idx}. {name}** — {pts} points")
+                    prestige = get_user_prestige(uid)
+                    lines.append(f"**{idx}. {name}** — {pts} points | Prestige: {prestige}")
             embed.description = "\n".join(lines)
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
