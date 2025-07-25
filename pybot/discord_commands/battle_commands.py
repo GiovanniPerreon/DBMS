@@ -627,6 +627,7 @@ class AttackButton(Button):
                 if winner == 0:  # Player wins
                     from .battle_commands import load_boss, save_boss
                     from .gacha_commands import load_points, save_points
+                    from .prestige_commands import get_point_multiplier
                     boss = load_boss()
                     if not boss["defeated"]:
                         boss["defeated"] = True
@@ -634,15 +635,15 @@ class AttackButton(Button):
                         JACKPOT_MULTIPLIER = 10  # Change this value to adjust the multiplier
                         jackpot = int(total_stats * JACKPOT_MULTIPLIER)
                         user_points = load_points()
-                        user_points[str(
-                            self.battle_view.user_id)] = user_points.get(
-                                str(self.battle_view.user_id), 0) + jackpot
+                        multiplier = get_point_multiplier(str(self.battle_view.user_id))
+                        prestige_jackpot = int(jackpot * multiplier)
+                        user_points[str(self.battle_view.user_id)] = user_points.get(str(self.battle_view.user_id), 0) + prestige_jackpot
                         save_points(user_points)
                         boss["current_hp"] = 0
                         save_boss(boss)
                         # Announce the prize
                         await interaction.followup.send(
-                            f"🎉 You defeated the boss and won the jackpot: {jackpot} points! A new boss has appeared!",
+                            f"🎉 You defeated the boss and won the jackpot: {prestige_jackpot} points! A new boss has appeared!",
                             ephemeral=False)
                         # Spawn a new boss
                         load_boss()

@@ -31,10 +31,18 @@ def register_fun_commands(client, GUILD_ID):
             payout = 0
             if spin[0] == spin[1] == spin[2]:
                 payout = 5000
-                msg = f"JACKPOT! {result} You win {payout} points!"
             elif spin[0] == spin[1] or spin[1] == spin[2] or spin[0] == spin[2]:
                 payout = 300
-                msg = f"Nice! {result} You win {payout}x points!"
+            from .prestige_commands import get_point_multiplier
+            multiplier = get_point_multiplier(str(self.user_id))
+            prestige_payout = int(payout * multiplier)
+            points = user_points.get(self.user_id, 0)
+            user_points[self.user_id] = points + prestige_payout
+            save_data()
+            if spin[0] == spin[1] == spin[2]:
+                msg = f"JACKPOT! {result} You win {prestige_payout} points!"
+            elif spin[0] == spin[1] or spin[1] == spin[2] or spin[0] == spin[2]:
+                msg = f"Nice! {result} You win {prestige_payout}x points!"
             else:
                 msg = f"{result} No win this time."
                 try:
@@ -44,9 +52,6 @@ def register_fun_commands(client, GUILD_ID):
                         loop.create_task(play_dang_it_audio(interaction.client))
                 except Exception as e:
                     print(f"Error playing dang_it.wav: {e}")
-            points = user_points.get(self.user_id, 0)
-            user_points[self.user_id] = points + payout
-            save_data()
             await interaction.response.edit_message(content=f"{msg}\n💰 Your points: {user_points[self.user_id]}", view=GambleView(self.user_id))
 
     class GambleView(discord.ui.View):
@@ -107,9 +112,12 @@ def register_fun_commands(client, GUILD_ID):
                 gain = random.randint(50, 200)
             else:
                 gain = random.randint(1, 50)
-            user_points[self.user_id] = points + gain
+            from .prestige_commands import get_point_multiplier
+            multiplier = get_point_multiplier(str(self.user_id))
+            prestige_gain = int(gain * multiplier)
+            user_points[self.user_id] = points + prestige_gain
             save_data()
-            await interaction.response.edit_message(content=f"🌾 You farmed {gain} points!\n💰 Current points: {user_points[self.user_id]}", view=GambleView(self.user_id))
+            await interaction.response.edit_message(content=f"🌾 You farmed {prestige_gain} points!\n💰 Current points: {user_points[self.user_id]}", view=GambleView(self.user_id))
 
     class GambleButton(discord.ui.Button):
         def __init__(self, user_id, percent, label, bot_bank, style=discord.ButtonStyle.danger):
