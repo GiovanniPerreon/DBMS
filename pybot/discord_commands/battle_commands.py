@@ -728,10 +728,9 @@ class AttackButton(Button):
                                 is_bot=True,
                                 show_buttons=True))
         else:
-            # PvP: Only show button to the player whose turn it is
+            # PvP: Always show AttackButton for the user whose turn it is
             turn_user = self.battle_view.user_id if battle.turn == 0 else self.battle_view.opponent_id
             show_buttons = str(interaction.user.id) == str(turn_user)
-            # Always reuse the same battle object for the view, so spell button is correct
             await interaction.response.edit_message(
                 embed=embed,
                 attachments=files,
@@ -740,6 +739,19 @@ class AttackButton(Button):
                                 self.battle_view.opponent_id,
                                 is_bot=self.battle_view.is_bot,
                                 show_buttons=show_buttons))
+
+            # If PvP, also update the view for the other player so they see the button on their turn
+            if not self.battle_view.is_bot:
+                other_user_id = self.battle_view.opponent_id if str(interaction.user.id) == str(self.battle_view.user_id) else self.battle_view.user_id
+                # Try to fetch the other user's message and update it
+                try:
+                    channel = interaction.channel
+                    # Find the message sent to the other user (if using ephemeral, this may not work)
+                    # If you store message references per user, update here
+                    # Example: await channel.send(embed=embed, view=BattleView(...))
+                    pass  # Implement message update logic if you store message references
+                except Exception as e:
+                    print(f"[PvP UI] Could not update other user's view: {e}")
 
     async def update_battle_embed(self, interaction):
         battle = self.battle
