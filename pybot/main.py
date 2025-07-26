@@ -102,7 +102,6 @@ def main():
         print("ERROR: GUILD_ID environment variable not found!")
         print("Please set your Discord server ID in the environment variables.")
         return
-
     try:
         GUILD_ID = discord.Object(id=int(guild_id))
     except ValueError:

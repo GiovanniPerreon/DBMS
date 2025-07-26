@@ -5,6 +5,7 @@ from discord_commands import fun_commands
 from discord_commands import gacha_commands
 from discord_commands import battle_commands
 from discord_commands import prestige_commands
+from discord_commands import quiz_commands
 def setup_commands(client, GUILD_ID):
     """Set up all slash commands for the bot by calling modular registration functions"""
     music_commands.register_music_commands(client, GUILD_ID)
@@ -14,3 +15,4 @@ def setup_commands(client, GUILD_ID):
     gacha_commands.register_gacha_commands(client, GUILD_ID)
     battle_commands.register_battle_commands(client, GUILD_ID)
     prestige_commands.register_prestige_commands(client, GUILD_ID)
+    quiz_commands.register_quiz_command(client, GUILD_ID)
