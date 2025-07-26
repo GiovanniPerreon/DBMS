@@ -59,6 +59,39 @@ UNIT_POOL = [
             "Stat Boost: Permanently increase all stats by 10"
         ]
     },
+    {
+        "name": "Shrek",
+        "stars": 4,
+        "image": "images/Shrek.png",
+        "stats": {"HP": 160, "ATK": 45, "DEF": 35},
+        "ability": "Get Out Of My Swamp: Reduces enemy ATK by 20%.",
+        "spell": [
+            "Swamp Heal: Restore 40% HP",
+            "Onion Smash: Deal double ATK as damage"
+        ]
+    },
+    {
+        "name": "Amongus",
+        "stars": 2,
+        "image": "images/Amongus.png",
+        "stats": {"HP": 70, "ATK": 18, "DEF": 12},
+        "ability": "Sus Attack: Has a chance to instantly defeat the enemy.",
+        "spell": [
+            "Emergency Meeting: Heal 40% HP and gain +10% DEF for 1 turn",
+            "Vent: 50% chance to dodge next attack"
+        ]
+    },
+    {
+        "name": "Elon Musk",
+        "stars": 5,
+        "image": "images/Elon_Musk.png",
+        "stats": {"HP": 180, "ATK": 65, "DEF": 30},
+        "ability": "To The Moon: Deals 15% more damage on attack and Rocket Launch deals bonus damage equal to 100% of ATK.",
+        "spell": [
+            "Rocket Launch: Deal bonus damage equal to 100% of ATK (ignores DEF)",
+            "Dogecoin Pump: Double ATK for 2 turns"
+        ]
+    },
 ]
 STAR_RATES = [
     (1, 0.35),  # 35% chance for 1-star
@@ -134,6 +167,59 @@ def sync_unit_metadata_to_inventory():
 # Register gacha commands
 
 def register_gacha_commands(client, GUILD_ID):
+    @client.tree.command(name="buff_all_units", description="Buff all units in your inventory by combining duplicates!", guild=GUILD_ID)
+    async def buff_all_units(interaction: discord.Interaction):
+        user_id = str(interaction.user.id)
+        inventory = load_inventory()
+        user_units = inventory.get(user_id, [])
+        # Group units by (name, stars)
+        groups = {}
+        for u in user_units:
+            key = (u['name'].lower(), u['stars'])
+            groups.setdefault(key, []).append(u)
+        buffed_any = False
+        messages = []
+        new_units = user_units.copy()
+        for (name, stars), matches in groups.items():
+            if len(matches) < 2:
+                continue
+            buffed_any = True
+            to_buff = matches[0]
+            num_to_remove = len(matches) - 1
+            # Remove all but one from inventory
+            removed = 0
+            temp_units = []
+            for u in new_units:
+                if u is to_buff:
+                    temp_units.append(u)
+                elif u['name'].lower() == name and u['stars'] == stars and removed < num_to_remove:
+                    removed += 1
+                    continue
+                else:
+                    temp_units.append(u)
+            new_units = temp_units
+            # Buff: for each unit being combined, randomly select a stat and add stars to to_buff
+            stat_increases = {"HP": 0, "ATK": 0, "DEF": 0}
+            for _ in range(num_to_remove):
+                stat = random.choice(["HP", "ATK", "DEF"])
+                stat_increases[stat] += stars
+            # Apply buffs and build message
+            buff_msgs = []
+            for stat in ["HP", "ATK", "DEF"]:
+                if stat_increases[stat] > 0:
+                    old_val = to_buff["stats"][stat] - stat_increases[stat]
+                    new_val = to_buff["stats"][stat]
+                    to_buff["stats"][stat] += stat_increases[stat]
+                    buff_msgs.append(f"{stat} +{stat_increases[stat]}")
+            messages.append(f"{to_buff['name']} ({stars}⭐): {'; '.join(buff_msgs)} (combined {len(matches)} copies)")
+        if not buffed_any:
+            await interaction.response.send_message("❌ You need at least two of a unit (same name and star) to buff anything!", ephemeral=True)
+            return
+        inventory[user_id] = new_units
+        save_inventory(inventory)
+        await interaction.response.send_message(
+            "✨ Buff results for all units:\n" + "\n".join(messages), ephemeral=True
+        )
     @client.tree.command(name="strongest_units", description="Show your strongest unit for each name", guild=GUILD_ID)
     async def strongest_units(interaction: discord.Interaction):
         user_id = str(interaction.user.id)

@@ -66,6 +66,60 @@ class BattleUnit:
             return 0
         spell = spells[spell_idx]
         spell_name = spell.split(":")[0].strip().lower()
+        # --- Custom meme unit spells ---
+        # Shrek: Swamp Heal (heal 50% HP), Onion Smash (deal 2x ATK-DEF damage)
+        if self.name.lower() == "shrek":
+            if "swamp heal" in spell_name:
+                heal_amount = int(self.max_hp * 0.5)
+                before = self.current_hp
+                self.current_hp = min(self.current_hp + heal_amount, self.max_hp)
+                actual_heal = self.current_hp - before
+                battle.log.append(f"Shrek casts Swamp Heal and restores {actual_heal} HP! ({self.current_hp}/{self.max_hp} HP)")
+                self.spell_used_this_turn = True
+                return actual_heal
+            elif "onion smash" in spell_name:
+                target = battle.units[1] if battle.units[0] == self else battle.units[0]
+                damage = max(0, (self.stats['ATK'] * 2) - target.stats['DEF'])
+                target.current_hp -= damage
+                battle.log.append(f"Shrek uses Onion Smash! Deals {damage} damage to {target.name}. ({target.current_hp}/{target.max_hp} HP left)")
+                self.spell_used_this_turn = True
+                return damage
+        # Amongus: Emergency Meeting (deal 30% max HP to enemy, cannot kill), Vent (50% chance to dodge next attack)
+        elif self.name.lower() == "amongus":
+            if "emergency meeting" in spell_name:
+                heal_amount = int(self.max_hp * 0.4)
+                before = self.current_hp
+                self.current_hp = min(self.current_hp + heal_amount, self.max_hp)
+                actual_heal = self.current_hp - before
+                # Grant +10% DEF for 1 turn
+                self._emergency_def_buff = int(self.stats['DEF'] * 0.1)
+                self.stats['DEF'] += self._emergency_def_buff
+                battle.log.append(f"Amongus calls Emergency Meeting! Heals {actual_heal} HP and gains +10% DEF for 1 turn! ({self.current_hp}/{self.max_hp} HP, DEF {self.stats['DEF']})")
+                self.spell_used_this_turn = True
+                return actual_heal
+            elif "vent" in spell_name:
+                import random
+                self._vent_dodge = random.random() < 0.5
+                if self._vent_dodge:
+                    battle.log.append(f"Amongus uses Vent! They will dodge the next attack!")
+                else:
+                    battle.log.append(f"Amongus uses Vent! But the impostor was caught... no dodge!")
+                self.spell_used_this_turn = True
+                return 1 if self._vent_dodge else 0
+        # Elon Musk: Rocket Launch (deal 40% max HP to enemy), Dogecoin Pump (double ATK for 2 turns)
+        elif self.name.lower() == "elon musk":
+            if "rocket launch" in spell_name:
+                target = battle.units[1] if battle.units[0] == self else battle.units[0]
+                damage = int(target.max_hp * 0.4)
+                target.current_hp -= damage
+                battle.log.append(f"Elon Musk launches a rocket! Deals {damage} damage to {target.name}. ({target.current_hp}/{target.max_hp} HP left)")
+                self.spell_used_this_turn = True
+                return damage
+            elif "dogecoin pump" in spell_name:
+                self._doge_pump_turns = 2
+                battle.log.append(f"Elon Musk pumps Dogecoin! ATK doubled for 2 turns!")
+                self.spell_used_this_turn = True
+                return 1
         # Heal: Restore 30% HP
         if "heal" in spell_name:
             heal_amount = int(self.max_hp * 0.3)
@@ -167,6 +221,15 @@ class BattleUnit:
             self.passives.append(self.inferno)
         if 'America supports Michael Saves' in self.ability:
             self.passives.append(self.america_supports)
+        # Shrek passive: Get Out Of My Swamp (Reduces enemy ATK by 20%)
+        if 'Get Out Of My Swamp' in self.ability:
+            self.passives.append(self.shrek_swamp)
+        # Amongus passive: Sus Attack (chance to instantly defeat enemy)
+        if 'Sus Attack' in self.ability:
+            self.passives.append(self.amongus_sus_attack)
+        # Elon Musk passive: To The Moon (bonus damage on attack)
+        if 'To The Moon' in self.ability:
+            self.passives.append(self.elon_moon)
 
     # --- Passive Implementations ---
     def sticky_body(self, trigger, attacker, damage, battle):
@@ -176,6 +239,36 @@ class BattleUnit:
                 f"{self.name}'s Sticky Body activates! DEF doubled, damage reduced to {reduced}."
             )
             return reduced
+        return damage
+    def shrek_swamp(self, trigger, attacker, damage, battle):
+        # Passive: Reduces enemy ATK by 20% when defending
+        if trigger == 'on_defend':
+            reduced_atk = int(attacker.stats['ATK'] * 0.8)
+            new_damage = max(0, reduced_atk - self.stats['DEF'])
+            battle.log.append(f"Shrek's Get Out Of My Swamp! Enemy ATK reduced by 20%. Damage: {new_damage}")
+            return new_damage
+        return damage
+
+    def amongus_sus_attack(self, trigger, attacker, damage, battle):
+        # Passive: Chance to instantly defeat enemy on every attack
+        if trigger == 'on_attack':
+            import random
+            if random.random() < 0.1:  # 10% chance
+                battle.log.append(f"Amongus used Sus Attack! The enemy was instantly defeated!")
+                if hasattr(battle, 'units'):
+                    target = battle.units[1] if battle.units[0] == self else battle.units[0]
+                    target.current_hp = 0
+                return 99999  # Overkill damage
+        return damage
+
+    def elon_moon(self, trigger, attacker, damage, battle):
+        # Passive: To The Moon - bonus damage on attack
+        if trigger == 'on_attack':
+            # 15% more damage, not +15 flat
+            bonus = int(damage * 0.15)
+            total_damage = damage + bonus
+            battle.log.append(f"Elon Musk's To The Moon! Bonus {bonus} damage added (15% more, total {total_damage}).")
+            return total_damage
         return damage
 
     def shield_wall(self, trigger, attacker, damage, battle):
@@ -239,11 +332,23 @@ class BattleUnit:
     def on_attack(self, target, battle):
         # Called when this unit attacks
         damage = max(0, self.stats['ATK'] - target.stats['DEF'])
+        # --- Custom meme unit passives/abilities ---
+        # Amongus Vent: dodge should trigger on defense, not attack
+        # Elon Musk Dogecoin Pump: double ATK for 2 turns
+        if hasattr(self, '_doge_pump_turns') and self._doge_pump_turns > 0:
+            damage *= 2
+            self._doge_pump_turns -= 1
+            battle.log.append(f"Elon Musk's Dogecoin Pump doubles his attack!")
         # Power Surge: double damage for one turn if active
         if hasattr(self, '_power_surge_active') and self._power_surge_active:
             damage *= 2
             battle.log.append(f"{self.name}'s Power Surge doubles their attack damage!")
             self._power_surge_active = False
+        # Elon Musk bonus: if ability contains 'To The Moon', add 100% of ATK as bonus damage
+        if self.name.lower() == "elon musk" and "To The Moon" in self.ability:
+            bonus = self.stats['ATK']
+            damage += bonus
+            battle.log.append(f"Elon Musk's To The Moon! Deals extra {bonus} damage (100% of ATK). Total: {damage}")
         # Apply passives that modify outgoing damage
         for passive in self.passives:
             damage = passive('on_attack', self, damage, battle)
@@ -251,6 +356,11 @@ class BattleUnit:
 
     def on_defend(self, attacker, damage, battle):
         # Called when this unit is attacked
+        # Amongus Vent: dodge next attack
+        if hasattr(self, '_vent_dodge') and self._vent_dodge:
+            battle.log.append(f"Amongus dodges the attack thanks to Vent!")
+            self._vent_dodge = False
+            return 0
         for passive in self.passives:
             damage = passive('on_defend', attacker, damage, battle)
         return damage
@@ -261,7 +371,12 @@ class BattleUnit:
 
     def on_turn_end(self, battle):
         # Called at the end of this unit's turn
-        pass
+        # Remove temporary DEF buff from Emergency Meeting
+        if hasattr(self, '_emergency_def_buff'):
+            self.stats['DEF'] -= self._emergency_def_buff
+            del self._emergency_def_buff
+            if hasattr(battle, 'log'):
+                battle.log.append(f"Amongus' Emergency Meeting DEF buff expired. DEF back to {self.stats['DEF']}")
 
 
 class Battle:
